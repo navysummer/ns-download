@@ -1,0 +1,9 @@
+[workspace]
+resolver = "3"
+members = ["native/*", "src-tauri"]
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = "fat"
+codegen-units = 1

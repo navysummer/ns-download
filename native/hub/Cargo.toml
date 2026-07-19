@@ -1,0 +1,22 @@
+[package]
+name = "hub"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+wildcard_imports = "deny"
+
+[dependencies]
+serde = { version = "1.0.219", features = ["derive"] }
+tokio = { version = "1.45.0", features = ["rt", "rt-multi-thread", "macros", "time", "sync", "fs", "net", "io-util", "process"] }
+ns_download_engine = { version = "0.1.0", path = "../engine" }
+ns_download_api = { version = "0.1.0", path = "../api" }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+ns_download_engine = { version = "0.1.0", path = "../engine", features = ["plugins", "components"] }
+ns_download_api = { version = "0.1.0", path = "../api", features = ["plugins"] }

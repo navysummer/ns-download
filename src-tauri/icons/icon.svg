@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2C2C2E"/>
+      <stop offset="100%" stop-color="#1C1C1E"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#3B82F6"/>
+    </linearGradient>
+    <linearGradient id="tray" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+
+  <!-- shadow -->
+  <rect x="12" y="14" width="1024" height="1024" rx="224" fill="#000" opacity="0.25"/>
+
+  <!-- background -->
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <rect width="1024" height="1024" rx="224" fill="none" stroke="#3A3A3C" stroke-width="2"/>
+
+  <!-- N + download arrow -->
+  <g>
+    <!-- left vertical of N -->
+    <rect x="260" y="240" width="72" height="380" rx="36" fill="url(#accent)"/>
+
+    <!-- diagonal of N -->
+    <polygon points="332,240 740,480 740,620 332,380" fill="url(#accent)"/>
+
+    <!-- right vertical of N (extends as arrow shaft) -->
+    <rect x="668" y="240" width="72" height="260" rx="36" fill="url(#accent)"/>
+  </g>
+
+  <!-- arrowhead (right side drops into a chevron) -->
+  <path d="M380 560 L740 560" stroke="url(#accent)" stroke-width="56" stroke-linecap="round"/>
+  <path d="M460 640 L600 640 L530 710" fill="none" stroke="url(#accent)" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- tray -->
+  <rect x="200" y="700" width="600" height="64" rx="32" fill="url(#tray)"/>
+</svg>
