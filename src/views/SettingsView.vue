@@ -890,8 +890,8 @@ async function testProxy() {
                 <span>Tauri 2.x</span><span style="color: #48484A;">·</span><span>Vue 3.x</span><span style="color: #48484A;">·</span><span>Rust</span><span style="color: #48484A;">·</span><span>TypeScript</span>
               </div>
               <div class="flex gap-3 pt-1">
-                <a href="https://github.com/anomalyco/ns-download" target="_blank" class="text-xs underline underline-offset-2 hover:opacity-80" style="color: #60A5FA;">GitHub</a>
-                <a href="https://github.com/anomalyco/ns-download/issues" target="_blank" class="text-xs underline underline-offset-2 hover:opacity-80" style="color: #60A5FA;">反馈</a>
+                <a href="https://github.com/navysummer/ns-download" target="_blank" class="text-xs underline underline-offset-2 hover:opacity-80" style="color: #60A5FA;">GitHub</a>
+                <a href="https://github.com/navysummer/ns-download/issues" target="_blank" class="text-xs underline underline-offset-2 hover:opacity-80" style="color: #60A5FA;">反馈</a>
               </div>
             </div>
           </section>
