@@ -2,9 +2,57 @@ mod commands;
 
 use tokio::sync::Mutex;
 use ns_download_engine::Engine;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::menu::{Menu, MenuItem};
+use tauri::image::Image;
+use tauri::Manager;
 
 pub struct AppState {
     pub engine: Mutex<Option<Engine>>,
+}
+
+fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let icon_bytes = include_bytes!("../icons/tray-icon.png");
+    let icon = Image::from_bytes(icon_bytes)?;
+
+    let show = MenuItem::with_id(app, "show", "显示窗口", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show, &quit])?;
+
+    TrayIconBuilder::new()
+        .icon(icon)
+        .icon_as_template(true)
+        .tooltip("ns-download")
+        .menu(&menu)
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event {
+                if let Some(window) = tray.app_handle().get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+        })
+        .on_menu_event(|app, event| {
+            match event.id().as_ref() {
+                "show" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                }
+                "quit" => {
+                    app.exit(0);
+                }
+                _ => {}
+            }
+        })
+        .build(app)?;
+
+    Ok(())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -27,6 +75,12 @@ pub fn run() {
             commands::resume_task,
             commands::remove_task,
         ])
+        .setup(|app| {
+            if let Err(e) = setup_tray(app) {
+                eprintln!("Failed to setup tray: {e}");
+            }
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

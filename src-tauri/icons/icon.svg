@@ -1,42 +1,46 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#2C2C2E"/>
-      <stop offset="100%" stop-color="#1C1C1E"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#1E1B4B"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#60A5FA"/>
-      <stop offset="100%" stop-color="#3B82F6"/>
+    <linearGradient id="letterGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="50%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#C084FC"/>
     </linearGradient>
-    <linearGradient id="tray" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#3B82F6"/>
-      <stop offset="100%" stop-color="#2563EB"/>
+    <linearGradient id="arrowGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#22D3EE"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
     </linearGradient>
   </defs>
 
   <!-- shadow -->
-  <rect x="12" y="14" width="1024" height="1024" rx="224" fill="#000" opacity="0.25"/>
+  <rect x="14" y="18" width="996" height="996" rx="228" fill="#000" opacity="0.25"/>
 
-  <!-- background -->
-  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
-  <rect width="1024" height="1024" rx="224" fill="none" stroke="#3A3A3C" stroke-width="2"/>
+  <!-- background rounded rect -->
+  <rect width="1024" height="1024" rx="228" fill="url(#bg)"/>
 
-  <!-- N + download arrow -->
-  <g>
-    <!-- left vertical of N -->
-    <rect x="260" y="240" width="72" height="380" rx="36" fill="url(#accent)"/>
+  <!-- subtle border -->
+  <rect width="1024" height="1024" rx="228" fill="none" stroke="#1E293B" stroke-width="3"/>
 
-    <!-- diagonal of N -->
-    <polygon points="332,240 740,480 740,620 332,380" fill="url(#accent)"/>
+  <!-- NSD letters -->
+  <g fill="none" stroke="url(#letterGrad)" stroke-width="44" stroke-linecap="round" stroke-linejoin="round">
 
-    <!-- right vertical of N (extends as arrow shaft) -->
-    <rect x="668" y="240" width="72" height="260" rx="36" fill="url(#accent)"/>
+    <!-- N -->
+    <polyline points="120,740 120,284 410,740 410,284"/>
+
+    <!-- S -->
+    <path d="M506 376c0-48 30-70 60-70h50c48 0 78 30 78 70s-24 54-60 54h-50c-50 0-80 30-80 70s30 70 80 70h50c30 0 60-24 60-70"/>
+
+    <!-- D -->
+    <polyline points="810,740 810,284"/>
+    <path d="M810 284c96 0 150 78 150 156s-54 156-150 156"/>
   </g>
 
-  <!-- arrowhead (right side drops into a chevron) -->
-  <path d="M380 560 L740 560" stroke="url(#accent)" stroke-width="56" stroke-linecap="round"/>
-  <path d="M460 640 L600 640 L530 710" fill="none" stroke="url(#accent)" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
-
-  <!-- tray -->
-  <rect x="200" y="700" width="600" height="64" rx="32" fill="url(#tray)"/>
+  <!-- download arrow inside D -->
+  <g fill="none" stroke="url(#arrowGrad)" stroke-width="28" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="888" y1="490" x2="888" y2="620"/>
+    <polyline points="848,580 888,620 928,580"/>
+  </g>
 </svg>

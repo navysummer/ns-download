@@ -882,7 +882,31 @@ async function testProxy() {
           <section class="rounded-xl" style="background-color: #2C2C2E; border: 1px solid #48484A;">
             <div class="p-5 space-y-4">
               <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background-color: #3B82F6;"><span class="text-white text-lg font-bold">N</span></div>
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%); box-shadow: 0 2px 16px rgba(56,189,248,0.35); border: 1px solid #1E293B;">
+              <svg width="28" height="28" viewBox="0 0 56 48" fill="none">
+                <defs>
+                  <linearGradient id="iconGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#38BDF8" />
+                    <stop offset="50%" stop-color="#818CF8" />
+                    <stop offset="100%" stop-color="#C084FC" />
+                  </linearGradient>
+                  <linearGradient id="arrowGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#22D3EE" />
+                    <stop offset="100%" stop-color="#38BDF8" />
+                  </linearGradient>
+                </defs>
+                <g fill="none" stroke="url(#iconGrad)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="4,36 4,12 17,36 17,12"/>
+                  <path d="M24 19c0-3.5 2-5 4-5h3.5c3.5 0 5.5 2 5.5 5s-1.5 4-4 4h-3.5c-3.5 0-5.5 2-5.5 5s2 5 5.5 5h3.5c2 0 4-1.5 4-5"/>
+                  <polyline points="40,36 40,12"/>
+                  <path d="M40 12c7 0 12 6 12 12s-5 12-12 12"/>
+                </g>
+                <g fill="none" stroke="url(#arrowGrad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="46" y1="22" x2="46" y2="31"/>
+                  <polyline points="42,27 46,31 50,27"/>
+                </g>
+              </svg>
+            </div>
                 <div><div class="text-sm font-semibold" style="color: #F5F5F7;">ns-download</div><div class="text-xs mt-0.5" style="color: #8E8E93;">版本 0.1.0</div></div>
               </div>
               <div class="text-xs leading-relaxed" style="color: #8E8E93;">A modern download manager built with Tauri and Vue.</div>
