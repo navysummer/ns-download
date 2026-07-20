@@ -1,4 +1,6 @@
 mod commands;
+mod settings;
+mod sink;
 
 use tokio::sync::Mutex;
 use ns_download_engine::Engine;
@@ -64,6 +66,10 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .manage(AppState {
             engine: Mutex::new(None),
         })
@@ -74,6 +80,19 @@ pub fn run() {
             commands::pause_task,
             commands::resume_task,
             commands::remove_task,
+            commands::load_settings,
+            commands::save_settings,
+            commands::test_proxy,
+            commands::check_update,
+            commands::check_command_exists,
+            commands::export_logs,
+            commands::start_api_server,
+            commands::stop_api_server,
+            commands::set_task_priority,
+            commands::move_task_to_queue,
+            commands::reveal_in_folder,
+            commands::send_notification,
+            commands::prevent_sleep,
         ])
         .setup(|app| {
             if let Err(e) = setup_tray(app) {

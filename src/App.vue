@@ -1,13 +1,125 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted, onUnmounted, watch } from "vue";
 import { useRouter } from "vue-router";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import type { UnlistenFn } from "@tauri-apps/api/event";
 import Sidebar from "./components/Sidebar.vue";
 import StatusBar from "./components/StatusBar.vue";
 import { Search, Settings } from "lucide-vue-next";
+import { useDownloadStore } from "./lib/store";
 
+interface TaskPayload {
+  task_id: string;
+  status: number;
+  downloaded_bytes: number;
+  total_bytes: number;
+  speed: number;
+  file_name: string;
+  save_dir: string;
+  url: string;
+  error_message: string;
+  upload_speed_bps: number;
+}
+
+interface TaskItem {
+  id: string;
+  url: string;
+  file_name: string;
+  save_dir: string;
+  status: number;
+  downloaded_bytes: number;
+  total_bytes: number;
+  error_message: string;
+  created_at: string;
+  completed_at: string;
+  segments: number;
+}
+
+interface TasksSnapshotPayload {
+  tasks: TaskItem[];
+}
+
+const store = useDownloadStore();
 const router = useRouter();
 const searchQuery = ref("");
 const searchFocused = ref(false);
+
+let unlistens: UnlistenFn[] = [];
+
+onMounted(async () => {
+  try {
+    await invoke("init_engine");
+    await store.loadSettings();
+
+    unlistens.push(await listen<TasksSnapshotPayload>("tasks-snapshot", (event) => {
+      store.tasks = event.payload.tasks;
+    }));
+
+    unlistens.push(await listen<TaskPayload>("task-progress", (event) => {
+      const p = event.payload;
+      const idx = store.tasks.findIndex(t => t.id === p.task_id);
+      const prevStatus = idx >= 0 ? store.tasks[idx].status : -1;
+      if (idx >= 0) {
+        store.tasks[idx] = {
+          ...store.tasks[idx],
+          ...p,
+          id: p.task_id,
+          speed: p.speed,
+          upload_speed: p.upload_speed_bps,
+        };
+      } else {
+        store.tasks.push({
+          id: p.task_id,
+          url: p.url,
+          file_name: p.file_name,
+          save_dir: p.save_dir,
+          status: p.status,
+          downloaded_bytes: p.downloaded_bytes,
+          total_bytes: p.total_bytes,
+          error_message: p.error_message,
+          created_at: "",
+          completed_at: "",
+          segments: 0,
+          speed: p.speed,
+          upload_speed: p.upload_speed_bps,
+        });
+      }
+      // Notification on complete
+      if (p.status === 3 && prevStatus !== 3 && store.settings.notifyOnComplete) {
+        store.sendNotification("下载完成", p.file_name || "任务已下载完成");
+      }
+    }));
+
+    // Keep awake while downloading
+    watch(() => store.tasks.filter(t => t.status === 1).length, async (count) => {
+      if (store.settings.keepAwake) {
+        await store.preventSleep(count > 0);
+      }
+    });
+
+    // Close to tray
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    const mainWindow = getCurrentWindow();
+    unlistens.push(await mainWindow.onCloseRequested(async (event) => {
+      if (store.settings.closeToTray) {
+        event.preventDefault();
+        await mainWindow.hide();
+      }
+    }));
+
+    // Start minimized
+    if (store.settings.startMinimized) {
+      await mainWindow.hide();
+    }
+  } catch (e) {
+    console.error("Failed to initialize engine:", e);
+  }
+});
+
+onUnmounted(() => {
+  unlistens.forEach(fn => fn());
+});
 </script>
 
 <template>

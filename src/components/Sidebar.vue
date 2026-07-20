@@ -8,6 +8,7 @@ import {
   Film, Music, FileText, ImageIcon, Package, Archive, File,
   Inbox, Clock, Tag, Circle, Pause, Play, SlidersHorizontal,
 } from "lucide-vue-next";
+import QueueManagerDialog from "./QueueManagerDialog.vue";
 
 const router = useRouter();
 const route = useRoute();
@@ -16,6 +17,7 @@ const store = useDownloadStore();
 const queuesExpanded = ref(true);
 const categoriesExpanded = ref(true);
 const hoveredQueue = ref<string | null>(null);
+const showQueueManager = ref(false);
 
 const statusTabs = [
   { key: "all", icon: LayoutGrid, label: "全部", query: {} },
@@ -30,16 +32,19 @@ const queues = [
   { id: 'later', icon: Clock, label: '稍后下载', running: false },
 ];
 
-const categories = [
-  { id: 'all', icon: Tag, label: '全部文件' },
-  { id: 'video', icon: Film, label: '视频' },
-  { id: 'audio', icon: Music, label: '音频' },
-  { id: 'document', icon: FileText, label: '文档' },
-  { id: 'image', icon: ImageIcon, label: '图片' },
-  { id: 'program', icon: Package, label: '程序' },
-  { id: 'archive', icon: Archive, label: '压缩包' },
-  { id: 'other', icon: File, label: '其他' },
-];
+const sidebarCategories = computed(() => {
+  const cats = [
+    { id: 'all', icon: Tag, label: '全部文件' },
+    ...store.categories.filter(c => c.isBuiltin && c.id !== 'all' && c.visible).map(c => {
+      const iconMap: Record<string, any> = {
+        video: Film, audio: Music, document: FileText,
+        image: ImageIcon, program: Package, archive: Archive,
+      };
+      return { id: c.id, icon: iconMap[c.id] || File, label: c.name };
+    }),
+  ];
+  return cats;
+});
 
 const selectedQueue = ref('default');
 const selectedCategory = ref('all');
@@ -80,7 +85,7 @@ function navStyle(selected: boolean) {
       <!-- Status tabs -->
       <button
         v-for="tab in statusTabs" :key="tab.key"
-        @click="router.push({ path: '/tasks', query: tab.query })"
+        @click="store.setActiveFilter(tab.query.status || 'all'); router.push({ path: '/tasks', query: tab.query })"
         :class="['flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors', isTabActive(tab) ? '' : 'hover-bg']"
         :style="navStyle(isTabActive(tab))"
       >
@@ -89,7 +94,7 @@ function navStyle(selected: boolean) {
           <span v-if="tab.key === 'downloading' && activeCount > 0"
             :style="{ backgroundColor: '#22C55E', borderColor: '#2C2C2E' }"
             class="absolute -right-1.5 -top-1.5 h-1.5 w-1.5 rounded-full border"
-          />
+          ></span>
         </span>
         <span class="flex-1 text-left">{{ tab.label }}</span>
         <span :style="{ color: '#8E8E93' }" class="text-2xs tabular-nums">{{ tabCount(tab.key) }}</span>
@@ -105,7 +110,7 @@ function navStyle(selected: boolean) {
             <component :is="queuesExpanded ? ChevronDown : ChevronRight" class="h-3 w-3" />
             <span class="text-2xs font-semibold uppercase tracking-wider" style="letter-spacing: 0.5px;">队列</span>
           </div>
-          <button @click.stop class="rounded p-0.5 transition-colors"><Plus class="h-3 w-3" /></button>
+          <button @click.stop="showQueueManager = true" class="rounded p-0.5 transition-colors"><Plus class="h-3 w-3" /></button>
         </div>
       </div>
       <template v-if="queuesExpanded">
@@ -152,16 +157,17 @@ function navStyle(selected: boolean) {
       </div>
       <template v-if="categoriesExpanded">
         <div
-          v-for="cat in categories" :key="cat.id"
-          @click="selectedCategory = cat.id"
+          v-for="cat in sidebarCategories" :key="cat.id"
+          @click="selectedCategory = cat.id; store.setCategoryFilter(cat.id)"
           :class="['flex items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors', selectedCategory === cat.id ? '' : 'hover-bg']"
           :style="{ height: '32px', margin: '1px 8px', ...navStyle(selectedCategory === cat.id) }"
         >
           <component :is="cat.icon" class="h-3.5 w-3.5 shrink-0" />
           <span class="flex-1 truncate text-xs">{{ cat.label }}</span>
-          <span :style="{ color: '#8E8E93' }" class="text-2xs tabular-nums">0</span>
+          <span :style="{ color: '#8E8E93' }" class="text-2xs tabular-nums">{{ store.categoryCount(cat.id) }}</span>
         </div>
       </template>
     </nav>
   </aside>
+  <QueueManagerDialog v-if="showQueueManager" @close="showQueueManager = false" />
 </template>

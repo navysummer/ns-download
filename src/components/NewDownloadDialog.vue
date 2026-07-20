@@ -3,6 +3,7 @@ import { ref, computed, onMounted, reactive } from "vue";
 import { useDownloadStore } from "../lib/store";
 import { X, Download, FolderOpen, Clock, FileDown, FileText, ChevronDown, Plus, CircleAlert } from "lucide-vue-next";
 import { downloadDir } from "@tauri-apps/api/path";
+import { open } from "@tauri-apps/plugin-dialog";
 
 const emit = defineEmits<{ close: [] }>();
 const store = useDownloadStore();
@@ -46,6 +47,11 @@ const segmentOptions = [
 ];
 
 const checksumAlgorithms = ['md5', 'sha-1', 'sha-256', 'sha-512'];
+
+async function pickSaveDir() {
+  const selected = await open({ directory: true, multiple: false, title: "选择保存目录" });
+  if (selected) saveDir.value = selected;
+}
 
 async function submit(later = false) {
   if (!url.value.trim()) return;
@@ -114,7 +120,7 @@ function removeHeader(index: number) {
             <input v-model="saveDir"
               class="flex-1 rounded-md px-3 py-2 text-sm outline-none transition-colors"
               :style="{ backgroundColor: '#1C1C1E', border: '1px solid #48484A', color: '#F5F5F7' }" />
-            <button class="flex items-center justify-center rounded-md px-3 transition-colors hover-bg-surface2"
+            <button @click="pickSaveDir" class="flex items-center justify-center rounded-md px-3 transition-colors hover-bg-surface2"
               :style="{ border: '1px solid #48484A' }">
               <FolderOpen class="h-4 w-4" :style="{ color: '#A1A1A6' }" />
             </button>

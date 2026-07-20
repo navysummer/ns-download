@@ -1,18 +1,53 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, watch, computed } from "vue";
 import { useRoute } from "vue-router";
 import { useDownloadStore } from "../lib/store";
 import TaskList from "../components/TaskList.vue";
 import NewDownloadDialog from "../components/NewDownloadDialog.vue";
-import { Plus, Play, Pause, Trash2 } from "lucide-vue-next";
+import { Plus, Play, Pause, Trash2, CheckSquare } from "lucide-vue-next";
 
 const store = useDownloadStore();
 const route = useRoute();
 const showNewDialog = ref(false);
+const manageMode = ref(false);
+const selectedIds = ref<Set<string>>(new Set());
 
 watch(() => route.query.status, (status) => {
   store.activeFilter = ({ completed: "completed", active: "active", paused: "paused", error: "error" })[status as string] ?? "all";
 }, { immediate: true });
+
+const allSelected = computed(() =>
+  store.filteredTasks.length > 0 && selectedIds.value.size === store.filteredTasks.length
+);
+
+function toggleSelectAll() {
+  if (allSelected.value) {
+    selectedIds.value = new Set();
+  } else {
+    selectedIds.value = new Set(store.filteredTasks.map(t => t.id));
+  }
+}
+
+function toggleSelect(id: string) {
+  const s = new Set(selectedIds.value);
+  if (s.has(id)) s.delete(id); else s.add(id);
+  selectedIds.value = s;
+}
+
+function batchPause() {
+  selectedIds.value.forEach(id => store.pauseTask(id));
+  selectedIds.value = new Set();
+}
+
+function batchResume() {
+  selectedIds.value.forEach(id => store.resumeTask(id));
+  selectedIds.value = new Set();
+}
+
+function batchRemove() {
+  selectedIds.value.forEach(id => store.removeTask(id));
+  selectedIds.value = new Set();
+}
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -28,10 +63,9 @@ function formatSpeed(bytes: number): string {
 }
 
 function formatEta(task: any): string {
-  if (task.status !== 1 || task.downloaded_bytes <= 0 || task.total_bytes <= 0) return "—";
+  if (task.status !== 1 || task.downloaded_bytes <= 0 || task.total_bytes <= 0 || !task.speed || task.speed <= 0) return "—";
   const remaining = task.total_bytes - task.downloaded_bytes;
-  const speed = 1_200_000; // placeholder — real speed from engine
-  const seconds = Math.round(remaining / speed);
+  const seconds = Math.round(remaining / task.speed);
   if (seconds < 60) return `约 ${seconds} 秒`;
   if (seconds < 3600) return `约 ${Math.round(seconds / 60)} 分钟`;
   return `约 ${(seconds / 3600).toFixed(1)} 小时`;
@@ -52,6 +86,11 @@ function formatEta(task: any): string {
         {{ tab.label }} ({{ tab.count }})
       </button>
       <div class="flex-1" />
+      <button :class="['rounded p-1.5 transition-colors', manageMode ? 'bg-blue-500/20 text-blue-500' : '']"
+        :style="{ color: manageMode ? '#3B82F6' : '#8E8E93' }"
+        @click="manageMode = !manageMode; if (!manageMode) selectedIds = new Set()">
+        <CheckSquare class="h-4 w-4" />
+      </button>
       <button @click="store.pauseAll" class="rounded p-1.5 transition-colors" :style="{ color: '#8E8E93' }">
         <Pause class="h-4 w-4" />
       </button>
@@ -65,11 +104,31 @@ function formatEta(task: any): string {
       </button>
     </div>
 
+    <!-- Batch action bar -->
+    <div v-if="manageMode && selectedIds.size > 0"
+      class="flex items-center gap-2 px-4 py-2"
+      :style="{ backgroundColor: 'rgba(59,130,246,0.1)', borderBottom: '1px solid #3A3A3C' }"
+    >
+      <span class="text-xs" :style="{ color: '#A1A1A6' }">已选择 {{ selectedIds.size }} 个任务</span>
+      <div class="flex-1"></div>
+      <button @click="batchResume" class="rounded px-2 py-1 text-xs transition-colors"
+        :style="{ color: '#22C55E' }"><Play class="h-3 w-3 inline" /> 恢复</button>
+      <button @click="batchPause" class="rounded px-2 py-1 text-xs transition-colors"
+        :style="{ color: '#F59E0B' }"><Pause class="h-3 w-3 inline" /> 暂停</button>
+      <button @click="batchRemove" class="rounded px-2 py-1 text-xs transition-colors"
+        :style="{ color: '#EF4444' }"><Trash2 class="h-3 w-3 inline" /> 删除</button>
+    </div>
+
     <TaskList
       :tasks="store.filteredTasks"
       :format-bytes="formatBytes"
       :format-speed="formatSpeed"
       :format-eta="formatEta"
+      :manage-mode="manageMode"
+      :selected-ids="selectedIds"
+      @toggle-select="toggleSelect"
+      @toggle-select-all="toggleSelectAll"
+      :all-selected="allSelected"
     />
 
     <NewDownloadDialog v-if="showNewDialog" @close="showNewDialog = false" />

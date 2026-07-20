@@ -26,6 +26,8 @@ export interface Task {
   created_at: string;
   completed_at: string;
   segments: number;
+  speed: number;
+  upload_speed: number;
 }
 
 export interface Settings {
@@ -77,6 +79,8 @@ export interface Settings {
   ytdlpPath: string;
   autoCheckUpdate: boolean;
   updateChannel: string;
+  btEnableDht: boolean;
+  btEnableUpnp: boolean;
   btPortStart: number;
   btPortEnd: number;
   btTrackerList: string;
@@ -91,6 +95,7 @@ export interface Settings {
 export const useDownloadStore = defineStore("download", () => {
   const tasks = ref<Task[]>([]);
   const activeFilter = ref("all");
+  const categoryFilter = ref("all");
 
   const settings = ref<Settings>({
     saveDir: "/Downloads",
@@ -141,6 +146,8 @@ export const useDownloadStore = defineStore("download", () => {
     ytdlpPath: "",
     autoCheckUpdate: true,
     updateChannel: "stable",
+    btEnableDht: true,
+    btEnableUpnp: true,
     btPortStart: 6881,
     btPortEnd: 6889,
     btTrackerList: "",
@@ -172,21 +179,39 @@ export const useDownloadStore = defineStore("download", () => {
     { id: "error", label: "错误", count: tasks.value.filter((t) => t.status === 4).length },
   ]);
 
+  function getCategoryForTask(task: Task): string {
+    const ext = task.file_name?.split('.').pop()?.toLowerCase() || '';
+    for (const cat of categories.value) {
+      if (cat.id === 'other') continue;
+      if (cat.extensions.includes(ext)) return cat.id;
+    }
+    return 'other';
+  }
+
   const filteredTasks = computed(() => {
-    if (activeFilter.value === "all") return tasks.value;
+    let result = tasks.value;
+    if (categoryFilter.value && categoryFilter.value !== "all") {
+      result = result.filter(t => getCategoryForTask(t) === categoryFilter.value);
+    }
+    if (activeFilter.value === "all") return result;
     switch (activeFilter.value) {
       case "active":
-        return tasks.value.filter((t) => [0, 1, 5].includes(t.status));
+        return result.filter((t) => [0, 1, 5].includes(t.status));
       case "completed":
-        return tasks.value.filter((t) => t.status === 3);
+        return result.filter((t) => t.status === 3);
       case "paused":
-        return tasks.value.filter((t) => t.status === 2);
+        return result.filter((t) => t.status === 2);
       case "error":
-        return tasks.value.filter((t) => t.status === 4);
+        return result.filter((t) => t.status === 4);
       default:
-        return tasks.value;
+        return result;
     }
   });
+
+  function categoryCount(id: string): number {
+    if (id === 'all') return tasks.value.length;
+    return tasks.value.filter(t => getCategoryForTask(t) === id).length;
+  }
 
   async function loadTasks() {
     try {
@@ -244,6 +269,54 @@ export const useDownloadStore = defineStore("download", () => {
     }
   }
 
+  async function setTaskPriority(taskId: string) {
+    try {
+      await invoke("set_task_priority", { taskId });
+    } catch (e) {
+      console.error("Failed to set task priority:", e);
+    }
+  }
+
+  async function moveTaskToQueue(taskId: string, queueId: string) {
+    try {
+      await invoke("move_task_to_queue", { taskId, queueId });
+    } catch (e) {
+      console.error("Failed to move task:", e);
+    }
+  }
+
+  async function revealInFolder(path: string) {
+    try {
+      await invoke("reveal_in_folder", { path });
+    } catch (e) {
+      console.error("Failed to reveal in folder:", e);
+    }
+  }
+
+  async function sendNotification(title: string, body: string) {
+    try {
+      await invoke("send_notification", { title, body });
+    } catch (e) {
+      console.error("Failed to send notification:", e);
+    }
+  }
+
+  async function preventSleep(prevent: boolean) {
+    try {
+      await invoke("prevent_sleep", { prevent });
+    } catch (e) {
+      console.error("Failed to toggle sleep:", e);
+    }
+  }
+
+  function setCategoryFilter(id: string) {
+    categoryFilter.value = id;
+  }
+
+  function setActiveFilter(id: string) {
+    activeFilter.value = id;
+  }
+
   const defaultCategories: CustomCategory[] = [
     { id: "all", name: "全部文件", builtinType: "all", isBuiltin: true, visible: true, icon: "FolderOpen", extensions: [], matchMode: "extension", regexPattern: "" },
     { id: "video", name: "视频", builtinType: "video", isBuiltin: true, visible: true, icon: "Video", extensions: ["mp4","mkv","avi","mov","wmv","flv","webm","m4v"], matchMode: "extension", regexPattern: "" },
@@ -288,23 +361,156 @@ export const useDownloadStore = defineStore("download", () => {
     }
   }
 
+  async function loadSettings() {
+    try {
+      const raw = await invoke<Record<string, string>>("load_settings");
+      const s = settings.value;
+      if (raw["default_save_dir"] !== undefined) s.saveDir = raw["default_save_dir"];
+      if (raw["max_concurrent_tasks"] !== undefined) s.maxConcurrent = parseInt(raw["max_concurrent_tasks"]) || 5;
+      if (raw["speed_limit_bytes"] !== undefined) s.speedLimit = parseInt(raw["speed_limit_bytes"]) || 0;
+      if (raw["default_segments"] !== undefined) s.defaultThreads = parseInt(raw["default_segments"]) || 0;
+      if (raw["auto_max_connections"] !== undefined) s.autoMaxConnections = parseInt(raw["auto_max_connections"]) || 16;
+      if (raw["global_user_agent"] !== undefined) s.userAgent = raw["global_user_agent"];
+      if (raw["max_auto_retries"] !== undefined) s.retryCount = parseInt(raw["max_auto_retries"]) ?? 3;
+      if (raw["auto_retry_delay_secs"] !== undefined) s.retryDelay = parseInt(raw["auto_retry_delay_secs"]) || 5;
+      if (raw["proxy_mode"] !== undefined) s.proxyType = raw["proxy_mode"];
+      if (raw["proxy_host"] !== undefined) s.proxyHost = raw["proxy_host"];
+      if (raw["proxy_port"] !== undefined) s.proxyPort = parseInt(raw["proxy_port"]) || 1080;
+      if (raw["proxy_username"] !== undefined) s.proxyUsername = raw["proxy_username"];
+      if (raw["proxy_password"] !== undefined) s.proxyPassword = raw["proxy_password"];
+      if (raw["proxy_no_list"] !== undefined) s.proxyNoList = raw["proxy_no_list"];
+      if (raw["close_to_tray"] !== undefined) s.closeToTray = raw["close_to_tray"] === "true";
+      if (raw["auto_startup"] !== undefined) s.autoStartup = raw["auto_startup"] === "true";
+      s.startMinimized = (raw["auto_startup"] === "true" && raw["close_to_tray"] === "true");
+      if (raw["notify_on_complete"] !== undefined) s.notifyOnComplete = raw["notify_on_complete"] !== "false";
+      if (raw["use_server_time"] !== undefined) s.useServerTime = raw["use_server_time"] === "true";
+      if (raw["bt_enable_dht"] !== undefined) s.btEnableDht = raw["bt_enable_dht"] === "true";
+      if (raw["bt_enable_upnp"] !== undefined) s.btEnableUpnp = raw["bt_enable_upnp"] === "true";
+      if (raw["bt_port_start"] !== undefined) s.btPortStart = parseInt(raw["bt_port_start"]) || 6881;
+      if (raw["bt_port_end"] !== undefined) s.btPortEnd = parseInt(raw["bt_port_end"]) || 6891;
+      if (raw["bt_custom_trackers"] !== undefined) s.btTrackerList = raw["bt_custom_trackers"];
+      if (raw["bt_tracker_sub_urls"] !== undefined) s.btTrackerSubUrls = raw["bt_tracker_sub_urls"];
+      if (raw["ed2k_enable_kad"] !== undefined) s.ed2kEnableKad = raw["ed2k_enable_kad"] === "true";
+      if (raw["ed2k_enable_upnp"] !== undefined) s.ed2kEnableUpnp = raw["ed2k_enable_upnp"] === "true";
+      if (raw["ed2k_listen_port"] !== undefined) s.ed2kListenPort = parseInt(raw["ed2k_listen_port"]) || 0;
+      if (raw["ed2k_server_list"] !== undefined) s.ed2kServerList = raw["ed2k_server_list"];
+      if (raw["ed2k_server_sub_urls"] !== undefined) s.ed2kServerSubUrls = raw["ed2k_server_sub_urls"];
+      if (raw["local_server_enabled"] !== undefined) s.localServerEnabled = raw["local_server_enabled"] === "true";
+      if (raw["local_server_port"] !== undefined) s.localServerPort = parseInt(raw["local_server_port"]) || 16891;
+      if (raw["local_server_token"] !== undefined) s.localServerToken = raw["local_server_token"];
+      if (raw["local_server_takeover_enabled"] !== undefined) s.localServerTakeoverEnabled = raw["local_server_takeover_enabled"] !== "false";
+      if (raw["local_server_jsonrpc_enabled"] !== undefined) s.localServerJsonrpcEnabled = raw["local_server_jsonrpc_enabled"] !== "false";
+      if (raw["local_server_api_enabled"] !== undefined) s.localServerApiEnabled = raw["local_server_api_enabled"] === "true";
+      // UI-only settings (stored in DB as well)
+      if (raw["ui_theme"] !== undefined) s.theme = raw["ui_theme"];
+      if (raw["ui_accent_color"] !== undefined) s.accentColor = raw["ui_accent_color"];
+      if (raw["ui_language"] !== undefined) s.language = raw["ui_language"];
+      if (raw["ui_scale"] !== undefined) s.uiScale = parseInt(raw["ui_scale"]) || 100;
+      if (raw["silent_download"] !== undefined) s.silentDownload = raw["silent_download"] === "true";
+      if (raw["default_queue_id"] !== undefined) s.defaultQueueId = raw["default_queue_id"];
+      if (raw["ffmpeg_path"] !== undefined) s.ffmpegPath = raw["ffmpeg_path"];
+      if (raw["ytdlp_path"] !== undefined) s.ytdlpPath = raw["ytdlp_path"];
+      if (raw["auto_check_update"] !== undefined) s.autoCheckUpdate = raw["auto_check_update"] !== "false";
+      if (raw["update_channel"] !== undefined) s.updateChannel = raw["update_channel"];
+      if (raw["reveal_file_cmd"] !== undefined) s.revealFileCmd = raw["reveal_file_cmd"];
+      if (raw["torrent_associated"] !== undefined) s.torrentAssociated = raw["torrent_associated"] === "true";
+      if (raw["keep_awake"] !== undefined) s.keepAwake = raw["keep_awake"] !== "false";
+    } catch (e) {
+      console.error("Failed to load settings:", e);
+    }
+  }
+
+  function settingsToMap(): Record<string, string> {
+    const s = settings.value;
+    return {
+      "default_save_dir": s.saveDir,
+      "max_concurrent_tasks": String(s.maxConcurrent),
+      "speed_limit_bytes": String(s.speedLimit),
+      "default_segments": String(s.defaultThreads),
+      "auto_max_connections": String(s.autoMaxConnections),
+      "global_user_agent": s.userAgent,
+      "max_auto_retries": String(s.retryCount),
+      "auto_retry_delay_secs": String(s.retryDelay),
+      "proxy_mode": s.proxyType,
+      "proxy_host": s.proxyHost,
+      "proxy_port": String(s.proxyPort),
+      "proxy_username": s.proxyUsername,
+      "proxy_password": s.proxyPassword,
+      "proxy_no_list": s.proxyNoList,
+      "close_to_tray": s.closeToTray ? "true" : "false",
+      "auto_startup": s.autoStartup ? "true" : "false",
+      "notify_on_complete": s.notifyOnComplete ? "true" : "false",
+      "use_server_time": s.useServerTime ? "true" : "false",
+      "bt_enable_dht": s.btEnableDht ? "true" : "false",
+      "bt_enable_upnp": s.btEnableUpnp ? "true" : "false",
+      "bt_port_start": String(s.btPortStart),
+      "bt_port_end": String(s.btPortEnd),
+      "bt_custom_trackers": s.btTrackerList,
+      "bt_tracker_sub_urls": s.btTrackerSubUrls,
+      "ed2k_enable_kad": s.ed2kEnableKad ? "true" : "false",
+      "ed2k_enable_upnp": s.ed2kEnableUpnp ? "true" : "false",
+      "ed2k_listen_port": String(s.ed2kListenPort),
+      "ed2k_server_list": s.ed2kServerList,
+      "ed2k_server_sub_urls": s.ed2kServerSubUrls,
+      "local_server_enabled": s.localServerEnabled ? "true" : "false",
+      "local_server_port": String(s.localServerPort),
+      "local_server_token": s.localServerToken,
+      "local_server_takeover_enabled": s.localServerTakeoverEnabled ? "true" : "false",
+      "local_server_jsonrpc_enabled": s.localServerJsonrpcEnabled ? "true" : "false",
+      "local_server_api_enabled": s.localServerApiEnabled ? "true" : "false",
+      "ui_theme": s.theme,
+      "ui_accent_color": s.accentColor,
+      "ui_language": s.language,
+      "ui_scale": String(s.uiScale),
+      "silent_download": s.silentDownload ? "true" : "false",
+      "default_queue_id": s.defaultQueueId,
+      "ffmpeg_path": s.ffmpegPath,
+      "ytdlp_path": s.ytdlpPath,
+      "auto_check_update": s.autoCheckUpdate ? "true" : "false",
+      "update_channel": s.updateChannel,
+      "reveal_file_cmd": s.revealFileCmd,
+      "torrent_associated": s.torrentAssociated ? "true" : "false",
+      "keep_awake": s.keepAwake ? "true" : "false",
+      "local_server_mcp_enabled": s.localServerMcpEnabled ? "true" : "false",
+    };
+  }
+
+  let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
   async function saveSettings() {
     try {
-      await invoke("update_settings", { settings: settings.value });
+      await invoke("save_settings", { settings: settingsToMap() });
+      // Sync auto-startup with system
+      try {
+        if (settings.value.autoStartup) {
+          await invoke("plugin:autostart|enable");
+        } else {
+          await invoke("plugin:autostart|disable");
+        }
+      } catch (e2) {
+        console.error("Failed to set auto-startup:", e2);
+      }
     } catch (e) {
       console.error("Failed to save settings:", e);
     }
   }
 
+  function saveSettingsDebounced() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => saveSettings(), 300);
+  }
+
   return {
     tasks,
     activeFilter,
+    categoryFilter,
     settings,
     activeCount,
     downloadSpeed,
     uploadSpeed,
     filterTabs,
     filteredTasks,
+    categoryCount,
     loadTasks,
     addTask,
     pauseTask,
@@ -318,6 +524,15 @@ export const useDownloadStore = defineStore("download", () => {
     addCustomCategory,
     removeCategory,
     moveCategory,
+    loadSettings,
     saveSettings,
+    saveSettingsDebounced,
+    setTaskPriority,
+    moveTaskToQueue,
+    revealInFolder,
+    sendNotification,
+    preventSleep,
+    setCategoryFilter,
+    setActiveFilter,
   };
 });

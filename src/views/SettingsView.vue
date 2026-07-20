@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, defineComponent, h } from "vue";
+import { ref, onMounted, computed, watch, defineComponent, h } from "vue";
 import { useDownloadStore } from "../lib/store";
 import { downloadDir } from "@tauri-apps/api/path";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import wxPayImg from "../assets/wx_pay.jpg";
 import { invoke } from "@tauri-apps/api/core";
 import {
@@ -122,6 +122,22 @@ const themePresets = [
 
 const serverPortDisplay = computed(() => store.settings.localServerPort);
 
+watch(() => store.settings, () => {
+  store.saveSettingsDebounced();
+}, { deep: true });
+
+watch(() => store.settings.localServerEnabled, async (enabled) => {
+  try {
+    if (enabled) {
+      await invoke("start_api_server");
+    } else {
+      await invoke("stop_api_server");
+    }
+  } catch (e) {
+    console.error("API server toggle failed:", e);
+  }
+});
+
 function applyUaPreset() {
   const val = uaPresets[uaPreset.value];
   if (val !== undefined) store.settings.userAgent = val;
@@ -130,6 +146,61 @@ function applyUaPreset() {
 const showAddCategory = ref(false);
 const newCategoryName = ref("");
 const newCategoryExts = ref("");
+
+// Extension detection
+const ffmpegInfo = ref<{ status: string; version: string; path: string } | null>(null);
+const ytdlpInfo = ref<{ status: string; version: string; path: string } | null>(null);
+
+async function detectExtension(name: string) {
+  try {
+    const result = await invoke<string | null>("check_command_exists", { name });
+    if (result) {
+      if (name === "ffmpeg") {
+        ffmpegInfo.value = { status: "系统", version: result, path: result };
+      } else {
+        ytdlpInfo.value = { status: "系统", version: result, path: result };
+      }
+    } else {
+      if (name === "ffmpeg") {
+        ffmpegInfo.value = { status: "未安装", version: "", path: "" };
+      } else {
+        ytdlpInfo.value = { status: "未安装", version: "", path: "" };
+      }
+    }
+  } catch {
+    if (name === "ffmpeg") {
+      ffmpegInfo.value = { status: "未安装", version: "", path: "" };
+    } else {
+      ytdlpInfo.value = { status: "未安装", version: "", path: "" };
+    }
+  }
+}
+
+// Update check
+const updateChecking = ref(false);
+const updateInfo = ref<{ has_update: boolean; latest_version: string; download_url: string; error_message: string } | null>(null);
+async function checkUpdate() {
+  updateChecking.value = true;
+  updateInfo.value = null;
+  try {
+    updateInfo.value = await invoke("check_update", { currentVersion: "v0.1.0" });
+  } catch (e) {
+    updateInfo.value = { has_update: false, latest_version: "", download_url: "", error_message: String(e) };
+  }
+  updateChecking.value = false;
+}
+
+// Log export
+async function exportLogs() {
+  try {
+    const dest = await save({ title: "导出日志", defaultPath: "ns-download-logs.zip" });
+    if (dest) {
+      await invoke("export_logs", { destPath: dest });
+    }
+  } catch (e) {
+    console.error("Failed to export logs:", e);
+  }
+}
 
 function confirmAddCategory() {
   const name = newCategoryName.value.trim();
@@ -160,6 +231,8 @@ onMounted(async () => {
       store.settings.saveDir = saveDir.value;
     } catch {}
   }
+  detectExtension("ffmpeg");
+  detectExtension("yt-dlp");
 });
 
 async function pickDir() {
@@ -728,10 +801,12 @@ async function testProxy() {
             <section class="rounded-xl overflow-hidden" style="background-color: #2C2C2E; border: 1px solid #48484A;">
               <div class="px-4 py-3 space-y-3">
                 <div class="flex items-center gap-2">
-                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="background-color: rgba(34,197,94,0.15); color: #22C55E;">系统</span>
-                  <span class="text-xs" style="color: #8E8E93;">v6.0</span>
+                  <span v-if="ffmpegInfo?.status === '系统'" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="background-color: rgba(34,197,94,0.15); color: #22C55E;">系统</span>
+                  <span v-else class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="background-color: rgba(59,130,246,0.15); color: #60A5FA;">未安装</span>
+                  <span v-if="ffmpegInfo?.version" class="text-xs" style="color: #8E8E93;">{{ ffmpegInfo.version }}</span>
                 </div>
-                <p class="text-xs" style="color: #8E8E93;">/usr/local/bin/ffmpeg</p>
+                <p v-if="ffmpegInfo?.path" class="text-xs" style="color: #8E8E93;">{{ ffmpegInfo.path }}</p>
+                <p v-else class="text-xs" style="color: #8E8E93;">未在系统路径中找到 ffmpeg</p>
               </div>
               <Divider />
               <div class="px-4 py-3 space-y-2">
@@ -750,9 +825,12 @@ async function testProxy() {
             <section class="rounded-xl overflow-hidden" style="background-color: #2C2C2E; border: 1px solid #48484A;">
               <div class="px-4 py-3 space-y-3">
                 <div class="flex items-center gap-2">
-                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="background-color: rgba(59,130,246,0.15); color: #60A5FA;">未安装</span>
+                  <span v-if="ytdlpInfo?.status === '系统'" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="background-color: rgba(34,197,94,0.15); color: #22C55E;">系统</span>
+                  <span v-else class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="background-color: rgba(59,130,246,0.15); color: #60A5FA;">未安装</span>
+                  <span v-if="ytdlpInfo?.version" class="text-xs" style="color: #8E8E93;">{{ ytdlpInfo.version }}</span>
                 </div>
-                <p class="text-xs" style="color: #8E8E93;">未在系统路径中找到 yt-dlp</p>
+                <p v-if="ytdlpInfo?.path" class="text-xs" style="color: #8E8E93;">{{ ytdlpInfo.path }}</p>
+                <p v-else class="text-xs" style="color: #8E8E93;">未在系统路径中找到 yt-dlp</p>
               </div>
               <Divider />
               <div class="px-4 py-3 space-y-2">
@@ -931,7 +1009,16 @@ async function testProxy() {
               </div>
               <Divider />
               <div class="px-4 py-3">
-                <button class="h-8 px-4 rounded-md text-xs font-medium transition-colors hover:opacity-90" style="background-color: #3B82F6; color: #fff;">检查更新</button>
+                <button @click="checkUpdate" :disabled="updateChecking" class="h-8 px-4 rounded-md text-xs font-medium transition-colors hover:opacity-90" style="background-color: #3B82F6; color: #fff;">
+                  {{ updateChecking ? '检查中…' : '检查更新' }}
+                </button>
+                <div v-if="updateInfo" class="mt-2 text-xs" :style="{ color: updateInfo.has_update ? '#22C55E' : updateInfo.error_message ? '#EF4444' : '#8E8E93' }">
+                  <template v-if="updateInfo.error_message">检查失败: {{ updateInfo.error_message }}</template>
+                  <template v-else-if="updateInfo.has_update">
+                    发现新版本 <a :href="updateInfo.download_url" target="_blank" style="color: #60A5FA;">{{ updateInfo.latest_version }}</a>
+                  </template>
+                  <template v-else>已是最新版本</template>
+                </div>
               </div>
             </section>
           </div>
@@ -941,7 +1028,7 @@ async function testProxy() {
             <section class="rounded-xl" style="background-color: #2C2C2E; border: 1px solid #48484A;">
               <div class="px-4 py-3 space-y-3">
                 <p class="text-xs" style="color: #8E8E93;">导出应用日志以排查问题</p>
-                <button class="h-8 px-4 rounded-md text-xs font-medium transition-colors" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #A1A1A6;">导出日志</button>
+                <button @click="exportLogs" class="h-8 px-4 rounded-md text-xs font-medium transition-colors" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #A1A1A6;">导出日志</button>
               </div>
             </section>
           </div>
