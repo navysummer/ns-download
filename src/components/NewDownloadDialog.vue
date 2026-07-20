@@ -5,12 +5,43 @@ import { X, Download, FolderOpen, Clock, FileDown, FileText, ChevronDown, Plus, 
 import { downloadDir } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/plugin-dialog";
 
+const props = defineProps<{ initialUrl?: string }>();
 const emit = defineEmits<{ close: [] }>();
 const store = useDownloadStore();
 
-const url = ref("");
+const url = ref(props.initialUrl || "");
 const saveDir = ref("");
 const rename = ref("");
+const torrentFile = ref("");
+
+async function pickTorrent() {
+  const selected = await open({
+    multiple: false,
+    filters: [{ name: 'Torrent', extensions: ['torrent'] }],
+  });
+  if (selected) {
+    torrentFile.value = selected as string;
+    url.value = selected as string;
+  }
+}
+
+async function pickTxt() {
+  const selected = await open({
+    multiple: false,
+    filters: [{ name: 'URL List', extensions: ['txt'] }],
+  });
+  if (selected) {
+    // Read the file and append URLs
+    try {
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+      const text = await readTextFile(selected as string);
+      const existing = url.value.trim();
+      url.value = existing ? existing + '\n' + text : text;
+    } catch (e) {
+      console.error("Failed to read file:", e);
+    }
+  }
+}
 const segments = ref("0");
 const showAdvanced = ref(false);
 const proxyUrl = ref("");
@@ -104,10 +135,10 @@ function removeHeader(index: number) {
             class="w-full resize-none rounded-md px-3 py-2 text-sm outline-none transition-colors"
             :style="{ backgroundColor: '#1C1C1E', border: '1px solid #48484A', color: '#F5F5F7', minHeight: '100px' }" />
           <div class="mt-1.5 flex gap-2">
-            <button class="flex items-center gap-1 rounded px-2 py-1 text-2xs transition-colors hover-bg" :style="{ color: '#3B82F6' }">
+            <button @click="pickTorrent" class="flex items-center gap-1 rounded px-2 py-1 text-2xs transition-colors hover-bg" :style="{ color: '#3B82F6' }">
               <FileDown class="h-3 w-3" /> 种子文件
             </button>
-            <button class="flex items-center gap-1 rounded px-2 py-1 text-2xs transition-colors hover-bg" :style="{ color: '#A1A1A6' }">
+            <button @click="pickTxt" class="flex items-center gap-1 rounded px-2 py-1 text-2xs transition-colors hover-bg" :style="{ color: '#A1A1A6' }">
               <FileText class="h-3 w-3" /> 导入 TXT
             </button>
           </div>

@@ -93,6 +93,7 @@ pub fn run() {
             commands::reveal_in_folder,
             commands::send_notification,
             commands::prevent_sleep,
+            commands::shutdown_system,
         ])
         .setup(|app| {
             if let Err(e) = setup_tray(app) {

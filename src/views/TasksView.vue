@@ -1,16 +1,19 @@
 <script setup lang="ts">
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import { useRoute } from "vue-router";
 import { useDownloadStore } from "../lib/store";
 import TaskList from "../components/TaskList.vue";
 import NewDownloadDialog from "../components/NewDownloadDialog.vue";
+import TaskDetailPanel from "../components/TaskDetailPanel.vue";
 import { Plus, Play, Pause, Trash2, CheckSquare } from "lucide-vue-next";
 
 const store = useDownloadStore();
 const route = useRoute();
 const showNewDialog = ref(false);
+const droppedUrl = ref("");
 const manageMode = ref(false);
 const selectedIds = ref<Set<string>>(new Set());
+const selectedTask = ref<any | null>(null);
 
 watch(() => route.query.status, (status) => {
   store.activeFilter = ({ completed: "completed", active: "active", paused: "paused", error: "error" })[status as string] ?? "all";
@@ -49,6 +52,49 @@ function batchRemove() {
   selectedIds.value = new Set();
 }
 
+function onSelect(task: any) {
+  selectedTask.value = task;
+}
+
+function onDragOver(e: DragEvent) {
+  e.preventDefault();
+}
+
+onMounted(() => {
+  window.addEventListener('batch-delete', onBatchDelete);
+  window.addEventListener('batch-toggle', onBatchToggle);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('batch-delete', onBatchDelete);
+  window.removeEventListener('batch-toggle', onBatchToggle);
+});
+
+function onBatchDelete() {
+  if (manageMode.value && selectedIds.value.size > 0) {
+    batchRemove();
+  }
+}
+
+function onBatchToggle() {
+  if (manageMode.value && selectedIds.value.size > 0) {
+    const allPaused = [...selectedIds.value].every(id => {
+      const t = store.tasks.find(t => t.id === id);
+      return t?.status === 2;
+    });
+    if (allPaused) batchResume(); else batchPause();
+  }
+}
+
+function onDrop(e: DragEvent) {
+  e.preventDefault();
+  const text = e.dataTransfer?.getData('text') || e.dataTransfer?.getData('text/plain');
+  if (text && (text.startsWith('http://') || text.startsWith('https://') || text.startsWith('magnet:') || text.startsWith('ftp://'))) {
+    droppedUrl.value = text;
+    showNewDialog.value = true;
+  }
+}
+
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
   const k = 1024;
@@ -73,7 +119,7 @@ function formatEta(task: any): string {
 </script>
 
 <template>
-  <div class="flex h-full flex-col">
+  <div class="flex h-full flex-col" @dragover="onDragOver" @drop="onDrop">
     <div class="flex items-center gap-2 px-4 py-2.5" :style="{ borderBottom: '1px solid #3A3A3C' }">
       <button
         v-for="tab in store.filterTabs" :key="tab.id"
@@ -97,7 +143,7 @@ function formatEta(task: any): string {
       <button @click="store.resumeAll" class="rounded p-1.5 transition-colors" :style="{ color: '#8E8E93' }">
         <Play class="h-4 w-4" />
       </button>
-      <button @click="showNewDialog = true"
+      <button @click="showNewDialog = true; droppedUrl = ''"
         class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
         :style="{ backgroundColor: '#3B82F6', color: '#fff' }">
         <Plus class="h-3.5 w-3.5" /> 新建
@@ -128,9 +174,18 @@ function formatEta(task: any): string {
       :selected-ids="selectedIds"
       @toggle-select="toggleSelect"
       @toggle-select-all="toggleSelectAll"
+      @select="onSelect"
       :all-selected="allSelected"
     />
 
-    <NewDownloadDialog v-if="showNewDialog" @close="showNewDialog = false" />
+    <TaskDetailPanel
+      v-if="selectedTask && !manageMode"
+      :task="selectedTask"
+      :format-bytes="formatBytes"
+      :format-speed="formatSpeed"
+      @close="selectedTask = null"
+    />
+
+    <NewDownloadDialog v-if="showNewDialog" :initial-url="droppedUrl" @close="showNewDialog = false; droppedUrl = ''" />
   </div>
 </template>

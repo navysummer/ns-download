@@ -27,10 +27,10 @@ const statusTabs = [
   { key: "error", icon: CircleAlert, label: "错误", query: { status: "error" } },
 ];
 
-const queues = [
-  { id: 'default', icon: Inbox, label: '默认', running: true },
-  { id: 'later', icon: Clock, label: '稍后下载', running: false },
-];
+const queues = computed(() => [
+  { id: 'default', icon: Inbox, label: '默认', running: store.queueStates.default },
+  { id: 'later', icon: Clock, label: '稍后下载', running: store.queueStates.later },
+]);
 
 const sidebarCategories = computed(() => {
   const cats = [
@@ -127,16 +127,16 @@ function navStyle(selected: boolean) {
 
           <template v-if="hoveredQueue === q.id">
             <span class="flex gap-0.5">
-              <button @click.stop class="rounded p-0.5" :style="{ color: '#8E8E93' }">
+              <button @click.stop="store.toggleQueue(q.id)" class="rounded p-0.5" :style="{ color: '#8E8E93' }">
                 <component :is="q.running ? Pause : Play" class="h-3 w-3" />
               </button>
-              <button @click.stop class="rounded p-0.5" :style="{ color: '#8E8E93' }">
+              <button @click.stop="showQueueManager = true" class="rounded p-0.5" :style="{ color: '#8E8E93' }">
                 <SlidersHorizontal class="h-3 w-3" />
               </button>
             </span>
           </template>
           <template v-else>
-            <span :style="{ color: '#8E8E93' }" class="text-2xs tabular-nums">{{ store.tasks.length }}</span>
+            <span :style="{ color: '#8E8E93' }" class="text-2xs tabular-nums">{{ store.queueTaskCounts[q.id] ?? 0 }}</span>
           </template>
 
           <Circle :style="{ color: q.running ? '#22C55E' : '#8E8E93' }" class="h-1.5 w-1.5 fill-current" />

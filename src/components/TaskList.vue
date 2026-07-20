@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
 import { useDownloadStore } from "../lib/store";
-import { Play, Pause, Music, Film, File, Trash2, FolderOpen, Copy, ArrowUp, List } from "lucide-vue-next";
+import { Play, Pause, Music, Film, File, Trash2, FolderOpen, Copy, ArrowUp, SlidersHorizontal, Star, ArrowUpDown, ArrowUpWideNarrow, ArrowDownWideNarrow } from "lucide-vue-next";
+import EditThreadsDialog from "./EditThreadsDialog.vue";
 
 const props = defineProps<{
   tasks: any[];
@@ -16,11 +17,13 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'toggle-select', id: string): void;
   (e: 'toggle-select-all'): void;
+  (e: 'select', task: any): void;
 }>();
 
 const store = useDownloadStore();
 const selectedId = ref<string | null>(null);
 const contextMenu = ref({ show: false, x: 0, y: 0, task: null as any | null });
+const showEditThreads = ref(false);
 
 function closeContextMenu() {
   contextMenu.value.show = false;
@@ -81,9 +84,47 @@ function extBadge(name: string): string {
           全选
         </label>
       </div>
+      <!-- Column headers -->
+      <div class="flex items-center gap-0 px-4 text-2xs font-medium uppercase tracking-wider select-none"
+        :style="{ height: '28px', borderBottom: '1px solid #3A3A3C', color: '#8E8E93', backgroundColor: '#252527' }"
+      >
+        <div class="ml-1 flex-1 min-w-0">
+          <button @click="store.setSort('file_name')" class="flex items-center gap-1 hover-text transition-colors">
+            文件名称
+            <ArrowUpDown v-if="store.sortField !== 'file_name'" class="h-2.5 w-2.5 opacity-40" />
+            <ArrowUpWideNarrow v-else-if="store.sortOrder === 'asc'" class="h-2.5 w-2.5" />
+            <ArrowDownWideNarrow v-else class="h-2.5 w-2.5" />
+          </button>
+        </div>
+        <div class="shrink-0 text-center" style="width: 150px;">
+          <button @click="store.setSort('downloaded_bytes')" class="flex items-center justify-center gap-1 hover-text transition-colors">
+            进度
+            <ArrowUpDown v-if="store.sortField !== 'downloaded_bytes'" class="h-2.5 w-2.5 opacity-40" />
+            <ArrowUpWideNarrow v-else-if="store.sortOrder === 'asc'" class="h-2.5 w-2.5" />
+            <ArrowDownWideNarrow v-else class="h-2.5 w-2.5" />
+          </button>
+        </div>
+        <div class="shrink-0 text-center" style="width: 90px;">
+          <button @click="store.setSort('speed')" class="flex items-center justify-center gap-1 hover-text transition-colors">
+            速度
+            <ArrowUpDown v-if="store.sortField !== 'speed'" class="h-2.5 w-2.5 opacity-40" />
+            <ArrowUpWideNarrow v-else-if="store.sortOrder === 'asc'" class="h-2.5 w-2.5" />
+            <ArrowDownWideNarrow v-else class="h-2.5 w-2.5" />
+          </button>
+        </div>
+        <div class="shrink-0 text-center" style="width: 80px;">
+          <button @click="store.setSort('status')" class="flex items-center justify-center gap-1 hover-text transition-colors">
+            状态
+            <ArrowUpDown v-if="store.sortField !== 'status'" class="h-2.5 w-2.5 opacity-40" />
+            <ArrowUpWideNarrow v-else-if="store.sortOrder === 'asc'" class="h-2.5 w-2.5" />
+            <ArrowDownWideNarrow v-else class="h-2.5 w-2.5" />
+          </button>
+        </div>
+        <div class="shrink-0" style="width: 72px;"></div>
+      </div>
       <div
         v-for="task in tasks" :key="task.id"
-        @click="manageMode ? emit('toggle-select', task.id) : (selectedId = task.id)"
+        @click="manageMode ? emit('toggle-select', task.id) : (selectedId = task.id, emit('select', task))"
         @contextmenu="onContextMenu($event, task)"
         :class="selectedId === task.id ? 'flex cursor-pointer items-center gap-0 px-4 transition-colors bg-selected' : 'flex cursor-pointer items-center gap-0 px-4 transition-colors hover-bg'"
         :style="{
@@ -108,7 +149,10 @@ function extBadge(name: string): string {
             <span class="text-2xs font-semibold tabular-nums" :style="{ color: '#A1A1A6' }">{{ extBadge(task.file_name || task.url) }}</span>
           </div>
           <div class="min-w-0 flex-1">
-            <div class="truncate text-sm font-medium" :style="{ color: '#F5F5F7' }">{{ task.file_name || task.url.split('/').pop() || task.url }}</div>
+            <div class="flex items-center gap-1.5">
+              <Star v-if="store.isPriorityTask(task.id)" class="h-3 w-3 shrink-0 fill-current" :style="{ color: '#F59E0B' }" />
+              <span class="truncate text-sm font-medium" :style="{ color: '#F5F5F7' }">{{ task.file_name || task.url.split('/').pop() || task.url }}</span>
+            </div>
             <div class="truncate text-2xs" :style="{ color: '#8E8E93' }">{{ task.url }}</div>
           </div>
         </div>
@@ -203,6 +247,15 @@ function extBadge(name: string): string {
       >
         <ArrowUp class="h-3.5 w-3.5" /> 优先下载
       </button>
+      <button
+        @click="showEditThreads = true; closeContextMenu()"
+        class="flex w-full items-center gap-2 rounded px-3 py-1.5 text-sm transition-colors"
+        :style="{ color: '#F5F5F7' }"
+        @mouseenter="$event.target.style.backgroundColor='#3A3A3C'"
+        @mouseleave="$event.target.style.backgroundColor='transparent'"
+      >
+        <SlidersHorizontal class="h-3.5 w-3.5" /> 编辑线程数
+      </button>
       <div :style="{ borderBottom: '1px solid #3A3A3C', margin: '4px 8px' }"></div>
       <button
         @click="navigator.clipboard.writeText(contextMenu.task.url); closeContextMenu()"
@@ -233,5 +286,7 @@ function extBadge(name: string): string {
         <Trash2 class="h-3.5 w-3.5" /> 删除任务
       </button>
     </div>
+
+    <EditThreadsDialog v-if="showEditThreads" :task="contextMenu.task" @close="showEditThreads = false" />
   </div>
 </template>

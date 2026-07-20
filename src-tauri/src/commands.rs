@@ -256,6 +256,56 @@ pub async fn prevent_sleep(prevent: bool) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub async fn shutdown_system(action: String) -> Result<(), String> {
+    match action.as_str() {
+        "shutdown" => {
+            #[cfg(target_os = "macos")]
+            std::process::Command::new("osascript")
+                .args(["-e", "tell app \"System Events\" to shut down"])
+                .spawn().map_err(|e| e.to_string())?;
+            #[cfg(target_os = "windows")]
+            std::process::Command::new("shutdown")
+                .args(["/s", "/f", "/t", "0"])
+                .spawn().map_err(|e| e.to_string())?;
+            #[cfg(target_os = "linux")]
+            std::process::Command::new("shutdown")
+                .args(["now"])
+                .spawn().map_err(|e| e.to_string())?;
+        }
+        "sleep" => {
+            #[cfg(target_os = "macos")]
+            std::process::Command::new("osascript")
+                .args(["-e", "tell app \"System Events\" to sleep"])
+                .spawn().map_err(|e| e.to_string())?;
+            #[cfg(target_os = "windows")]
+            std::process::Command::new("rundll32.exe")
+                .args(["powrprof.dll,SetSuspendState", "0", "1", "0"])
+                .spawn().map_err(|e| e.to_string())?;
+            #[cfg(target_os = "linux")]
+            std::process::Command::new("systemctl")
+                .args(["suspend"])
+                .spawn().map_err(|e| e.to_string())?;
+        }
+        "hibernate" => {
+            #[cfg(target_os = "macos")]
+            std::process::Command::new("osascript")
+                .args(["-e", "tell app \"System Events\" to sleep"])
+                .spawn().map_err(|e| e.to_string())?;
+            #[cfg(target_os = "windows")]
+            std::process::Command::new("shutdown")
+                .args(["/h", "/f"])
+                .spawn().map_err(|e| e.to_string())?;
+            #[cfg(target_os = "linux")]
+            std::process::Command::new("systemctl")
+                .args(["hibernate"])
+                .spawn().map_err(|e| e.to_string())?;
+        }
+        _ => return Err("Unknown action, use: shutdown, sleep, hibernate".into()),
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn remove_task(
     state: State<'_, AppState>,
     task_id: String,

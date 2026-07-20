@@ -864,6 +864,10 @@ async function testProxy() {
           <!-- 基础 -->
           <template v-if="btSubTab === 'basic'">
             <section class="rounded-xl overflow-hidden" style="background-color: #2C2C2E; border: 1px solid #48484A;">
+              <SettingRow label="启用 DHT 网络" desc="通过 DHT 网络发现更多用户" v-model="store.settings.btEnableDht" />
+              <Divider />
+              <SettingRow label="启用 UPnP" desc="自动进行 UPnP 端口映射" v-model="store.settings.btEnableUpnp" />
+              <Divider />
               <div class="px-4 py-3 space-y-2">
                 <label class="text-sm font-medium" style="color: #F5F5F7;">监听端口范围</label>
                 <p class="text-xs" style="color: #8E8E93;">BT 协议使用的 TCP 端口范围</p>

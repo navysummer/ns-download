@@ -28,6 +28,7 @@ export interface Task {
   segments: number;
   speed: number;
   upload_speed: number;
+  priority?: boolean;
 }
 
 export interface Settings {
@@ -96,6 +97,11 @@ export const useDownloadStore = defineStore("download", () => {
   const tasks = ref<Task[]>([]);
   const activeFilter = ref("all");
   const categoryFilter = ref("all");
+  const searchQuery = ref("");
+  const priorityTaskIds = ref<Set<string>>(new Set());
+  const speedHistory = ref<number[]>([]);
+  const sortField = ref<string>("");
+  const sortOrder = ref<"asc" | "desc">("desc");
 
   const settings = ref<Settings>({
     saveDir: "/Downloads",
@@ -163,13 +169,27 @@ export const useDownloadStore = defineStore("download", () => {
     tasks.value.filter((t) => t.status === 1).length
   );
 
+  const totalDownloadSpeed = computed(() =>
+    tasks.value.filter((t) => t.status === 1).reduce((sum, t) => sum + (t.speed || 0), 0)
+  );
+
+  const totalUploadSpeed = computed(() =>
+    tasks.value.filter((t) => t.status === 1).reduce((sum, t) => sum + (t.upload_speed || 0), 0)
+  );
+
   const downloadSpeed = computed(() => {
-    const active = tasks.value.filter((t) => t.status === 1);
-    if (active.length === 0) return "0 B/s";
-    return `${active.length} 个下载中`;
+    const speed = totalDownloadSpeed.value;
+    if (speed <= 0) return "0 B/s";
+    if (speed >= 1024 * 1024) return `${(speed / (1024 * 1024)).toFixed(1)} MB/s`;
+    return `${Math.round(speed / 1024)} KB/s`;
   });
 
-  const uploadSpeed = computed(() => "0 B/s");
+  const uploadSpeed = computed(() => {
+    const speed = totalUploadSpeed.value;
+    if (speed <= 0) return "0 B/s";
+    if (speed >= 1024 * 1024) return `${(speed / (1024 * 1024)).toFixed(1)} MB/s`;
+    return `${Math.round(speed / 1024)} KB/s`;
+  });
 
   const filterTabs = computed(() => [
     { id: "all", label: "全部", count: tasks.value.length },
@@ -190,23 +210,61 @@ export const useDownloadStore = defineStore("download", () => {
 
   const filteredTasks = computed(() => {
     let result = tasks.value;
+    if (searchQuery.value) {
+      const q = searchQuery.value.toLowerCase();
+      result = result.filter(t =>
+        t.file_name?.toLowerCase().includes(q) ||
+        t.url?.toLowerCase().includes(q) ||
+        t.id?.toLowerCase().includes(q)
+      );
+    }
     if (categoryFilter.value && categoryFilter.value !== "all") {
       result = result.filter(t => getCategoryForTask(t) === categoryFilter.value);
     }
-    if (activeFilter.value === "all") return result;
-    switch (activeFilter.value) {
-      case "active":
-        return result.filter((t) => [0, 1, 5].includes(t.status));
-      case "completed":
-        return result.filter((t) => t.status === 3);
-      case "paused":
-        return result.filter((t) => t.status === 2);
-      case "error":
-        return result.filter((t) => t.status === 4);
-      default:
-        return result;
+    if (activeFilter.value !== "all") {
+      switch (activeFilter.value) {
+        case "active":
+          result = result.filter((t) => [0, 1, 5].includes(t.status)); break;
+        case "completed":
+          result = result.filter((t) => t.status === 3); break;
+        case "paused":
+          result = result.filter((t) => t.status === 2); break;
+        case "error":
+          result = result.filter((t) => t.status === 4); break;
+      }
     }
+    // Sort
+    if (sortField.value) {
+      const field = sortField.value as keyof Task;
+      result = [...result].sort((a, b) => {
+        let va: any = a[field], vb: any = b[field];
+        if (typeof va === 'string') va = va.toLowerCase();
+        if (typeof vb === 'string') vb = vb.toLowerCase();
+        if (va == null) va = '';
+        if (vb == null) vb = '';
+        if (va < vb) return sortOrder.value === 'asc' ? -1 : 1;
+        if (va > vb) return sortOrder.value === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return result;
   });
+
+  function recordSpeed(speed: number) {
+    const h = speedHistory.value;
+    h.push(speed);
+    if (h.length > 60) h.shift();
+    speedHistory.value = [...h];
+  }
+
+  function setSort(field: string) {
+    if (sortField.value === field) {
+      sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortField.value = field;
+      sortOrder.value = field === 'downloaded_bytes' || field === 'speed' ? 'desc' : 'asc';
+    }
+  }
 
   function categoryCount(id: string): number {
     if (id === 'all') return tasks.value.length;
@@ -272,9 +330,16 @@ export const useDownloadStore = defineStore("download", () => {
   async function setTaskPriority(taskId: string) {
     try {
       await invoke("set_task_priority", { taskId });
+      const s = new Set(priorityTaskIds.value);
+      if (s.has(taskId)) s.delete(taskId); else s.add(taskId);
+      priorityTaskIds.value = s;
     } catch (e) {
       console.error("Failed to set task priority:", e);
     }
+  }
+
+  function isPriorityTask(taskId: string): boolean {
+    return priorityTaskIds.value.has(taskId);
   }
 
   async function moveTaskToQueue(taskId: string, queueId: string) {
@@ -284,6 +349,22 @@ export const useDownloadStore = defineStore("download", () => {
       console.error("Failed to move task:", e);
     }
   }
+
+  const queueStates = ref<Record<string, boolean>>({ default: true, later: false });
+
+  function toggleQueue(queueId: string) {
+    const s = { ...queueStates.value };
+    s[queueId] = !s[queueId];
+    queueStates.value = s;
+  }
+
+  const queueTaskCounts = computed(() => {
+    const counts: Record<string, number> = {};
+    for (const qid of Object.keys(queueStates.value)) {
+      counts[qid] = 0;
+    }
+    return counts;
+  })
 
   async function revealInFolder(path: string) {
     try {
@@ -306,6 +387,14 @@ export const useDownloadStore = defineStore("download", () => {
       await invoke("prevent_sleep", { prevent });
     } catch (e) {
       console.error("Failed to toggle sleep:", e);
+    }
+  }
+
+  async function shutdownSystem(action: string) {
+    try {
+      await invoke("shutdown_system", { action });
+    } catch (e) {
+      console.error("Failed to shutdown:", e);
     }
   }
 
@@ -504,10 +593,13 @@ export const useDownloadStore = defineStore("download", () => {
     tasks,
     activeFilter,
     categoryFilter,
+    searchQuery,
     settings,
     activeCount,
     downloadSpeed,
     uploadSpeed,
+    totalDownloadSpeed,
+    totalUploadSpeed,
     filterTabs,
     filteredTasks,
     categoryCount,
@@ -528,11 +620,21 @@ export const useDownloadStore = defineStore("download", () => {
     saveSettings,
     saveSettingsDebounced,
     setTaskPriority,
+    isPriorityTask,
     moveTaskToQueue,
+    queueStates,
+    queueTaskCounts,
+    toggleQueue,
     revealInFolder,
     sendNotification,
     preventSleep,
+    shutdownSystem,
     setCategoryFilter,
     setActiveFilter,
+    sortField,
+    sortOrder,
+    setSort,
+    speedHistory,
+    recordSpeed,
   };
 });
