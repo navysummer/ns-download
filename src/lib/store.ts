@@ -144,7 +144,7 @@ export const useDownloadStore = defineStore("download", () => {
     showTitlebarSettings: true,
     showTitlebarTheme: true,
     localServerEnabled: false,
-    localServerPort: 16891,
+    localServerPort: 17800,
     localServerToken: "",
     localServerTakeoverEnabled: true,
     localServerJsonrpcEnabled: true,
@@ -289,6 +289,7 @@ export const useDownloadStore = defineStore("download", () => {
     save_dir: string;
     file_name?: string;
     segments?: number;
+    overwrite?: boolean;
     torrent_file_bytes?: number[];
     selected_file_indices?: number[];
     proxy_url?: string;
@@ -324,9 +325,9 @@ export const useDownloadStore = defineStore("download", () => {
     }
   }
 
-  async function removeTask(id: string) {
+  async function removeTask(id: string, deleteFiles = false) {
     try {
-      await invoke("remove_task", { taskId: id, deleteFiles: false });
+      await invoke("remove_task", { taskId: id, deleteFiles });
       await loadTasks();
     } catch (e) {
       console.error("Failed to remove task:", e);

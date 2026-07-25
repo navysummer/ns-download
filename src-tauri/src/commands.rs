@@ -67,6 +67,8 @@ pub struct CreateTaskSpec {
     pub checksum: String,
     #[serde(default)]
     pub extra_headers: std::collections::HashMap<String, String>,
+    #[serde(default)]
+    pub overwrite: bool,
 }
 
 
@@ -93,6 +95,7 @@ pub async fn init_engine(app_handle: tauri::AppHandle, state: State<'_, AppState
     };
 
     let sink = Arc::new(crate::sink::TauriEventSink::new(app_handle));
+    let sink_for_progress = sink.clone();
 
     let mut engine = Engine::new(config, sink, Arc::new(NoopSelection))
         .await
@@ -104,8 +107,39 @@ pub async fn init_engine(app_handle: tauri::AppHandle, state: State<'_, AppState
     // Apply all saved settings from DB to the running engine.
     settings::apply_all(&mut engine).await;
 
+    // Take the progress and done receivers so they are actually consumed.
+    // Without this, progress channels fill up (buffer=64) and downloaders
+    // block forever on send, making tasks appear stuck in "preparing" state.
+    let progress_rx = engine.manager.take_progress_rx();
+    let done_rx = engine.manager.take_done_rx();
+    let engine_for_done = state.engine.clone();
+    let db = engine.db.clone();
+
     *engine_guard = Some(engine);
     drop(engine_guard);
+
+    // Spawn the progress reporter so progress updates are processed
+    // instead of blocking the downloaders when the channel buffer fills up.
+    if let Some(rx) = progress_rx {
+        tokio::spawn(async move {
+            ns_download_engine::download_manager::progress_reporter(rx, db, sink_for_progress).await;
+        });
+    }
+
+    // Spawn the done handler so TaskDone messages are processed and
+    // active_tasks entries are freed, allowing queued tasks to start.
+    if let Some(mut rx) = done_rx {
+        tokio::spawn(async move {
+            while let Some(done) = rx.recv().await {
+                let mut guard = engine_for_done.lock().await;
+                if let Some(ref mut eng) = *guard {
+                    eng.manager.on_task_done(&done).await;
+                } else {
+                    break;
+                }
+            }
+        });
+    }
 
     spawn_subscription_tasks(state.engine.clone()).await;
 
@@ -142,6 +176,7 @@ pub async fn create_task(state: State<'_, AppState>, spec: CreateTaskSpec) -> Re
         referrer: spec.referrer,
         checksum: spec.checksum,
         extra_headers: spec.extra_headers,
+        overwrite: spec.overwrite,
         ..Default::default()
     };
 
@@ -613,10 +648,10 @@ pub async fn start_api_server(state: State<'_, AppState>) -> Result<(), String> 
         let engine_guard = state.engine.lock().await;
         let eng = engine_guard.as_ref().ok_or("engine not initialized")?;
         let port_str = eng.db.get_config("local_server_port").await
-            .ok().flatten().unwrap_or_else(|| "16891".to_string());
+            .ok().flatten().unwrap_or_else(|| "17800".to_string());
         let token = eng.db.get_config("local_server_token").await
             .ok().flatten().unwrap_or_default();
-        let port: u16 = port_str.parse().unwrap_or(16891);
+        let port: u16 = port_str.parse().unwrap_or(17800);
         // Store the shutdown sender
         let mut shutdown_guard = state.api_server_shutdown.lock().await;
         *shutdown_guard = Some(tx);

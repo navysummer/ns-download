@@ -144,6 +144,34 @@ onMounted(async () => {
       }
     }));
 
+    unlistens.push(await listen("queue-positions-changed", (event: any) => {
+      const positions = event.payload;
+      if (Array.isArray(positions)) {
+        for (const p of positions) {
+          const task = store.tasks.find(t => t.id === p.task_id);
+          if (task) {
+            task.segments = p.position;
+          }
+        }
+      }
+    }));
+
+    unlistens.push(await listen("file-missing-changed", (event: any) => {
+      const changes = event.payload;
+      if (Array.isArray(changes)) {
+        for (const { task_id, missing } of changes) {
+          const task = store.tasks.find(t => t.id === task_id);
+          if (task && missing) {
+            console.warn(`Task ${task_id} files are missing`);
+          }
+        }
+      }
+    }));
+
+    unlistens.push(await listen("plugin-hook-activity", (event: any) => {
+      console.debug("Plugin hook activity:", event.payload);
+    }));
+
     // Start API server if enabled
     if (store.settings.localServerEnabled) {
       try {

@@ -621,6 +621,8 @@ pub struct NewTaskSpec {
     /// 稍后下载：true = 建任务后不启动（paused 入库），待「启动队列」
     /// 按序恢复或用户手动恢复。
     pub start_paused: bool,
+    /// 若文件名已存在，是否覆盖原文件（跳过自动重命名去重）。
+    pub overwrite: bool,
 }
 
 /// Information needed to start a queued task later.
@@ -667,6 +669,8 @@ struct QueuedTask {
     /// 是否已完成惰性解析（off-actor resolve 回流后置 true，避免重复解析）。
     #[cfg_attr(not(feature = "plugins"), allow(dead_code))]
     resolved: bool,
+    /// 若文件名已存在，跳过自动去重重命名，直接覆盖。
+    overwrite: bool,
     /// resolver 插件担保直链支持 Range（`rangeSupported: true`）：跳过 probe 的
     /// 同时按已验证 Range 规划多段，不落入配额型端点式的保守单流启动。
     range_supported: bool,
@@ -2498,6 +2502,7 @@ impl DownloadManager {
             body,
             audio_url,
             start_paused,
+            overwrite,
         } = spec;
         // 任务必属队列：未指定时归入内置主队列（'' 不再是有效归属，统一
         // 覆盖旧客户端信号 / aria2 / REST / CLI 等所有创建入口）。
@@ -2661,6 +2666,7 @@ impl DownloadManager {
             resolver_plugin_id,
             resolved: false,
             range_supported: false,
+            overwrite: spec.overwrite,
         };
         if is_bt || (self.has_capacity() && self.has_queue_capacity(&queued.queue_id)) {
             self.do_start_task(queued).await;
@@ -2783,6 +2789,7 @@ impl DownloadManager {
             resolver_plugin_id: _,
             resolved: _,
             range_supported,
+            overwrite,
         } = queued;
 
         // Four-tier segment count priority:
@@ -3117,6 +3124,7 @@ impl DownloadManager {
             }
 
             // Step 2: dedup + insert reserved。
+            // overwrite=true 时跳过去重，使用用户指定的文件名（即使已存在）。
             // dedup_filename_sync 本身是同步的；仅当 dedup 改名时有一次
             // update_task_file_name 落库 .await（须在 insert 前完成，否则 spawned
             // task 可能用到旧名）。do_start_task 持有 &mut self 且运行于
@@ -3125,11 +3133,13 @@ impl DownloadManager {
             // 此时 self.reserved_temp_paths 中只有兄弟任务的预订，不包含自己，
             // 因此不会出现"自我冲突"。
             let reserved_temp_path: Option<std::path::PathBuf> = if !file_name.is_empty() {
-                let deduped =
-                    dedup_filename_sync(&save_path, &file_name, &self.reserved_temp_paths);
+                let deduped = if overwrite {
+                    file_name.clone()
+                } else {
+                    dedup_filename_sync(&save_path, &file_name, &self.reserved_temp_paths)
+                };
                 if deduped != file_name {
                     file_name = deduped.clone();
-                    // dedup 改名后立即落库（spawned task 不再修改文件名）
                     let _ = self.db.update_task_file_name(&task_id, &file_name).await;
                 }
                 let temp = save_path.join(format!("{}{}", deduped, downloader::TEMP_EXT));
@@ -3435,6 +3445,7 @@ impl DownloadManager {
                     resolver_plugin_id: String::new(),
                     resolved: false,
                     range_supported: false,
+                    overwrite: false,
                 });
                 // 入队后立即广播最新队列位置(与 create_task 一致),否则要等后续
                 // drain_queue 才广播,期间 UI 显示过时的排队位置。
@@ -4658,6 +4669,7 @@ impl DownloadManager {
                 resolver_plugin_id: String::new(),
                 resolved: false,
                 range_supported: false,
+                overwrite: false,
             });
             // 入队后立即广播最新队列位置(覆盖单个 resume 与 batch_resume 批量入队;
             // broadcast_queue_positions 为只读信号,多次调用无副作用)。

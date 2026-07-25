@@ -199,7 +199,54 @@ impl EventSink for TauriEventSink {
                 });
                 let _ = self.app_handle.emit("priority-task-changed", payload);
             }
-            _ => {}
+            EngineEvent::SegmentSplit {
+                task_id,
+                parent_index,
+                parent_new_end,
+                child_index,
+                child_start,
+                child_end,
+                is_proactive,
+                total_segments,
+            } => {
+                let payload = serde_json::json!({
+                    "task_id": task_id,
+                    "parent_index": parent_index,
+                    "parent_new_end": parent_new_end,
+                    "child_index": child_index,
+                    "child_start": child_start,
+                    "child_end": child_end,
+                    "is_proactive": is_proactive,
+                    "total_segments": total_segments,
+                });
+                let _ = self.app_handle.emit("segment-split", payload);
+            }
+            EngineEvent::FileMissingChanged(changes) => {
+                let payload: Vec<serde_json::Value> = changes
+                    .into_iter()
+                    .map(|(id, missing)| {
+                        serde_json::json!({ "task_id": id, "missing": missing })
+                    })
+                    .collect();
+                let _ = self.app_handle.emit("file-missing-changed", payload);
+            }
+            EngineEvent::PluginAutoDisabled { identity, reason } => {
+                let payload = serde_json::json!({ "identity": identity, "reason": reason });
+                let _ = self.app_handle.emit("plugin-auto-disabled", payload);
+            }
+            EngineEvent::PluginHookActivity {
+                task_id,
+                plugin_id,
+                running,
+            } => {
+                let payload = serde_json::json!({
+                    "task_id": task_id,
+                    "plugin_id": plugin_id,
+                    "running": running,
+                });
+                let _ = self.app_handle.emit("plugin-hook-activity", payload);
+            }
+            _ => {} // non_exhaustive enum guard
         }
     }
 }

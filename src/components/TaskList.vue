@@ -25,10 +25,30 @@ const selectedId = ref<string | null>(null);
 const contextMenu = ref({ show: false, x: 0, y: 0, task: null as any | null });
 const showEditThreads = ref(false);
 const showQueueSubmenu = ref(false);
+const deleteConfirmTask = ref<any | null>(null);
 
 function closeContextMenu() {
   contextMenu.value.show = false;
   contextMenu.value.task = null;
+}
+
+function onDeleteClick(task: any) {
+  if (task.status === 3) {
+    deleteConfirmTask.value = task;
+  } else {
+    store.removeTask(task.id);
+  }
+}
+
+function confirmDeleteTask(deleteFiles: boolean) {
+  if (deleteConfirmTask.value) {
+    store.removeTask(deleteConfirmTask.value.id, deleteFiles);
+    deleteConfirmTask.value = null;
+  }
+}
+
+function cancelDeleteTask() {
+  deleteConfirmTask.value = null;
 }
 
 function onContextMenu(e: MouseEvent, task: any) {
@@ -85,124 +105,133 @@ function extBadge(name: string): string {
           全选
         </label>
       </div>
-      <!-- Column headers -->
-      <div class="flex items-center gap-0 px-4 text-2xs font-medium uppercase tracking-wider select-none"
-        :style="{ height: '28px', borderBottom: '1px solid #3A3A3C', color: '#8E8E93', backgroundColor: '#252527' }"
-      >
-        <div class="ml-1 flex-1 min-w-0">
-          <button @click="store.setSort('file_name')" class="flex items-center gap-1 hover-text transition-colors">
-            文件名称
-            <ArrowUpDown v-if="store.sortField !== 'file_name'" class="h-2.5 w-2.5 opacity-40" />
-            <ArrowUpWideNarrow v-else-if="store.sortOrder === 'asc'" class="h-2.5 w-2.5" />
-            <ArrowDownWideNarrow v-else class="h-2.5 w-2.5" />
-          </button>
-        </div>
-        <div class="shrink-0 text-center" style="width: 150px;">
-          <button @click="store.setSort('downloaded_bytes')" class="flex items-center justify-center gap-1 hover-text transition-colors">
-            进度
-            <ArrowUpDown v-if="store.sortField !== 'downloaded_bytes'" class="h-2.5 w-2.5 opacity-40" />
-            <ArrowUpWideNarrow v-else-if="store.sortOrder === 'asc'" class="h-2.5 w-2.5" />
-            <ArrowDownWideNarrow v-else class="h-2.5 w-2.5" />
-          </button>
-        </div>
-        <div class="shrink-0 text-center" style="width: 90px;">
-          <button @click="store.setSort('speed')" class="flex items-center justify-center gap-1 hover-text transition-colors">
-            速度
-            <ArrowUpDown v-if="store.sortField !== 'speed'" class="h-2.5 w-2.5 opacity-40" />
-            <ArrowUpWideNarrow v-else-if="store.sortOrder === 'asc'" class="h-2.5 w-2.5" />
-            <ArrowDownWideNarrow v-else class="h-2.5 w-2.5" />
-          </button>
-        </div>
-        <div class="shrink-0 text-center" style="width: 80px;">
-          <button @click="store.setSort('status')" class="flex items-center justify-center gap-1 hover-text transition-colors">
-            状态
-            <ArrowUpDown v-if="store.sortField !== 'status'" class="h-2.5 w-2.5 opacity-40" />
-            <ArrowUpWideNarrow v-else-if="store.sortOrder === 'asc'" class="h-2.5 w-2.5" />
-            <ArrowDownWideNarrow v-else class="h-2.5 w-2.5" />
-          </button>
-        </div>
-        <div class="shrink-0" style="width: 72px;"></div>
-      </div>
-      <div
-        v-for="task in tasks" :key="task.id"
-        @click="manageMode ? emit('toggle-select', task.id) : (selectedId = task.id, emit('select', task))"
-        @contextmenu="onContextMenu($event, task)"
-        :class="selectedId === task.id ? 'flex cursor-pointer items-center gap-0 px-4 transition-colors bg-selected' : 'flex cursor-pointer items-center gap-0 px-4 transition-colors hover-bg'"
-        :style="{
-          height: '64px',
-          borderBottom: '1px solid #3A3A3C',
-          backgroundColor: selectedId === task.id && !manageMode ? '#3A3A3C' : 'transparent',
-        }"
-      >
-        <!-- Checkbox in manage mode -->
-        <input v-if="manageMode" type="checkbox"
-          :checked="selectedIds?.has(task.id)"
-          @click.stop="emit('toggle-select', task.id)"
-          class="mr-3 h-4 w-4 shrink-0"
-          :style="{ accentColor: '#3B82F6' }"
-        />
-        <!-- Selected indicator -->
-        <div v-if="!manageMode && selectedId === task.id" class="mr-3 shrink-0 rounded-sm" :style="{ width: '3px', height: '28px', backgroundColor: '#3B82F6' }"></div>
+      <table :style="{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }">
+        <thead class="text-2xs font-medium uppercase tracking-wider select-none"
+          :style="{ color: '#8E8E93', backgroundColor: '#252527' }"
+        >
+          <tr :style="{ height: '28px' }">
+            <th :style="{ width: '200px', padding: '0 4px', borderBottom: '1px solid #3A3A3C', verticalAlign: 'middle', fontWeight: 'inherit', textAlign: 'left' }">
+              <button @click="store.setSort('file_name')" class="flex items-center gap-1 hover-text transition-colors w-full text-left truncate">
+                文件名称
+                <ArrowUpDown v-if="store.sortField !== 'file_name'" class="h-2.5 w-2.5 shrink-0 opacity-40" />
+                <ArrowUpWideNarrow v-else-if="store.sortOrder === 'asc'" class="h-2.5 w-2.5 shrink-0" />
+                <ArrowDownWideNarrow v-else class="h-2.5 w-2.5 shrink-0" />
+              </button>
+            </th>
+            <th :style="{ width: '150px', padding: '0 4px', borderBottom: '1px solid #3A3A3C', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
+              <button @click="store.setSort('downloaded_bytes')" class="inline-flex items-center justify-center gap-1 hover-text transition-colors">
+                进度
+                <ArrowUpDown v-if="store.sortField !== 'downloaded_bytes'" class="h-2.5 w-2.5 opacity-40" />
+                <ArrowUpWideNarrow v-else-if="store.sortOrder === 'asc'" class="h-2.5 w-2.5" />
+                <ArrowDownWideNarrow v-else class="h-2.5 w-2.5" />
+              </button>
+            </th>
+            <th :style="{ width: '90px', padding: '0 4px', borderBottom: '1px solid #3A3A3C', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
+              <button @click="store.setSort('speed')" class="inline-flex items-center justify-center gap-1 hover-text transition-colors">
+                速度
+                <ArrowUpDown v-if="store.sortField !== 'speed'" class="h-2.5 w-2.5 opacity-40" />
+                <ArrowUpWideNarrow v-else-if="store.sortOrder === 'asc'" class="h-2.5 w-2.5" />
+                <ArrowDownWideNarrow v-else class="h-2.5 w-2.5" />
+              </button>
+            </th>
+            <th :style="{ width: '80px', padding: '0 4px', borderBottom: '1px solid #3A3A3C', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
+              <span class="text-2xs font-medium uppercase tracking-wider" :style="{ color: '#8E8E93' }">剩余时间</span>
+            </th>
+            <th :style="{ width: '60px', padding: '0 4px', borderBottom: '1px solid #3A3A3C', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
+              <button @click="store.setSort('status')" class="inline-flex items-center justify-center gap-1 hover-text transition-colors">
+                状态
+                <ArrowUpDown v-if="store.sortField !== 'status'" class="h-2.5 w-2.5 opacity-40" />
+                <ArrowUpWideNarrow v-else-if="store.sortOrder === 'asc'" class="h-2.5 w-2.5" />
+                <ArrowDownWideNarrow v-else class="h-2.5 w-2.5" />
+              </button>
+            </th>
+            <th :style="{ width: '72px', padding: '0 4px', borderBottom: '1px solid #3A3A3C', verticalAlign: 'middle', fontWeight: 'inherit' }"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            v-for="task in tasks" :key="task.id"
+            @click="manageMode ? emit('toggle-select', task.id) : (selectedId = task.id, emit('select', task))"
+            @contextmenu="onContextMenu($event, task)"
+            :class="selectedId === task.id && !manageMode ? 'cursor-pointer bg-selected' : 'cursor-pointer hover-bg'"
+            :style="{
+              height: '64px',
+              borderBottom: '1px solid #3A3A3C',
+              backgroundColor: selectedId === task.id && !manageMode ? '#3A3A3C' : 'transparent',
+            }"
+          >
+            <!-- File Info -->
+            <td :style="{ width: '200px', padding: '0 4px', verticalAlign: 'middle' }">
+              <div class="flex items-center gap-2 overflow-hidden">
+                <input v-if="manageMode" type="checkbox"
+                  :checked="selectedIds?.has(task.id)"
+                  @click.stop="emit('toggle-select', task.id)"
+                  class="h-4 w-4 shrink-0"
+                  :style="{ accentColor: '#3B82F6' }"
+                />
+                <div v-if="!manageMode && selectedId === task.id" class="shrink-0 rounded-sm" :style="{ width: '3px', height: '28px', backgroundColor: '#3B82F6' }"></div>
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md" :style="{ backgroundColor: '#2C2C2E' }">
+                  <span class="text-2xs font-semibold tabular-nums" :style="{ color: '#A1A1A6' }">{{ extBadge(task.file_name || task.url) }}</span>
+                </div>
+                <div class="min-w-0 flex-1 overflow-hidden">
+                  <div class="flex items-center gap-1.5">
+                    <Star v-if="store.isPriorityTask(task.id)" class="h-3 w-3 shrink-0 fill-current" :style="{ color: '#F59E0B' }" />
+                    <span class="truncate text-sm font-medium" :style="{ color: '#F5F5F7' }" :title="task.file_name || task.url.split('/').pop() || task.url">{{ task.file_name || task.url.split('/').pop() || task.url }}</span>
+                  </div>
+                  <div class="truncate text-2xs" :style="{ color: '#8E8E93' }" :title="task.url">{{ task.url }}</div>
+                </div>
+              </div>
+            </td>
 
-        <!-- File Info (flex: 1) -->
-        <div class="flex min-w-0 flex-1 items-center gap-3">
-          <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md" :style="{ backgroundColor: '#2C2C2E' }">
-            <span class="text-2xs font-semibold tabular-nums" :style="{ color: '#A1A1A6' }">{{ extBadge(task.file_name || task.url) }}</span>
-          </div>
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-1.5">
-              <Star v-if="store.isPriorityTask(task.id)" class="h-3 w-3 shrink-0 fill-current" :style="{ color: '#F59E0B' }" />
-              <span class="truncate text-sm font-medium" :style="{ color: '#F5F5F7' }">{{ task.file_name || task.url.split('/').pop() || task.url }}</span>
-            </div>
-            <div class="truncate text-2xs" :style="{ color: '#8E8E93' }">{{ task.url }}</div>
-          </div>
-        </div>
+            <!-- Progress -->
+            <td :style="{ width: '150px', padding: '0 4px', verticalAlign: 'middle' }">
+              <div class="flex items-center gap-1.5">
+                <div class="h-1 rounded-full flex-1 min-w-0" :style="{ backgroundColor: '#3A3A3C' }">
+                  <div class="h-full rounded-full transition-all duration-300"
+                    :style="{
+                      width: `${task.total_bytes > 0 ? Math.round((task.downloaded_bytes / task.total_bytes) * 100) : 0}%`,
+                      backgroundColor: progressColor(task.status),
+                    }"
+                  />
+                </div>
+                <span class="shrink-0 text-xs tabular-nums text-right" style="min-width: 36px;" :style="{ color: '#A1A1A6' }">
+                  {{ task.total_bytes > 0 ? Math.round((task.downloaded_bytes / task.total_bytes) * 100) : 0 }}%
+                </span>
+              </div>
+            </td>
 
-        <!-- Progress (~150px) -->
-        <div class="shrink-0 px-3" style="width: 150px;">
-          <div class="flex items-center gap-2">
-            <div class="flex-1 h-1 rounded-full" :style="{ backgroundColor: '#3A3A3C' }">
-              <div class="h-full rounded-full transition-all duration-300"
-                :style="{
-                  width: `${task.total_bytes > 0 ? Math.round((task.downloaded_bytes / task.total_bytes) * 100) : 0}%`,
-                  backgroundColor: progressColor(task.status),
-                }"
-              />
-            </div>
-            <span class="shrink-0 text-xs tabular-nums" :style="{ color: '#A1A1A6' }">
-              {{ task.total_bytes > 0 ? Math.round((task.downloaded_bytes / task.total_bytes) * 100) : 0 }}%
-            </span>
-          </div>
-        </div>
+            <!-- Speed -->
+            <td :style="{ width: '90px', padding: '0 4px', textAlign: 'center', verticalAlign: 'middle', color: task.status === 1 ? '#22C55E' : '#8E8E93' }" class="text-xs tabular-nums">
+              {{ task.status === 1 && task.speed > 0 ? props.formatSpeed(task.speed) : '—' }}
+            </td>
 
-        <!-- Speed (~90px) -->
-        <div class="shrink-0 text-xs tabular-nums text-center" style="width: 90px;" :style="{ color: task.status === 1 ? '#22C55E' : '#8E8E93' }">
-          {{ task.status === 1 && task.speed > 0 ? props.formatSpeed(task.speed) : '—' }}
-        </div>
+            <!-- ETA -->
+            <td :style="{ width: '80px', padding: '0 4px', textAlign: 'center', verticalAlign: 'middle', color: task.status === 1 ? '#A1A1A6' : '#8E8E93' }" class="text-xs tabular-nums">
+              {{ task.status === 1 && task.speed > 0 && task.total_bytes > 0 ? props.formatEta(task) : '—' }}
+            </td>
 
-        <!-- ETA (~80px) -->
-        <div class="shrink-0 text-xs tabular-nums text-center" style="width: 80px;" :style="{ color: task.status === 1 ? '#A1A1A6' : '#8E8E93' }">
-          {{ task.status === 1 && task.speed > 0 && task.total_bytes > 0 ? props.formatEta(task) : '—' }}
-        </div>
+            <!-- Status -->
+            <td :style="{ width: '60px', padding: '0 4px', textAlign: 'center', verticalAlign: 'middle', color: progressColor(task.status) }" class="text-xs">
+              {{ statusText(task.status) }}
+            </td>
 
-        <!-- Status (~60px) -->
-        <div class="shrink-0 text-center text-xs" style="width: 60px;" :style="{ color: progressColor(task.status) }">
-          {{ statusText(task.status) }}
-        </div>
-
-        <!-- Actions -->
-        <div class="flex shrink-0 items-center gap-0.5 pl-2" style="width: 72px;">
-          <button v-if="task.status === 2" @click.stop="store.resumeTask(task.id)" class="rounded p-1.5 transition-colors" :style="{ color: '#8E8E93' }">
-            <Play class="h-3.5 w-3.5" />
-          </button>
-          <button v-else-if="task.status === 1" @click.stop="store.pauseTask(task.id)" class="rounded p-1.5 transition-colors" :style="{ color: '#8E8E93' }">
-            <Pause class="h-3.5 w-3.5" />
-          </button>
-          <button @click.stop="store.removeTask(task.id)" class="rounded p-1.5 transition-colors" :style="{ color: '#8E8E93' }">
-            <Trash2 class="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </div>
+            <!-- Actions -->
+            <td :style="{ width: '72px', padding: '0 4px', verticalAlign: 'middle' }">
+              <div class="flex items-center justify-center gap-0.5">
+                <button v-if="task.status === 2" @click.stop="store.resumeTask(task.id)" class="rounded p-1.5 transition-colors" :style="{ color: '#8E8E93' }">
+                  <Play class="h-3.5 w-3.5" />
+                </button>
+                <button v-else-if="task.status === 1" @click.stop="store.pauseTask(task.id)" class="rounded p-1.5 transition-colors" :style="{ color: '#8E8E93' }">
+                  <Pause class="h-3.5 w-3.5" />
+                </button>
+                <button @click.stop="onDeleteClick(task)" class="rounded p-1.5 transition-colors" :style="{ color: '#8E8E93' }">
+                  <Trash2 class="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- Context Menu -->
@@ -315,7 +344,7 @@ function extBadge(name: string): string {
       </button>
       <div :style="{ borderBottom: '1px solid #3A3A3C', margin: '4px 8px' }"></div>
       <button
-        @click="store.removeTask(contextMenu.task.id); closeContextMenu()"
+        @click="onDeleteClick(contextMenu.task); closeContextMenu()"
         class="flex w-full items-center gap-2 rounded px-3 py-1.5 text-sm transition-colors"
         :style="{ color: '#EF4444' }"
         @mouseenter="$event.target.style.backgroundColor='#3A3A3C'"
@@ -323,6 +352,40 @@ function extBadge(name: string): string {
       >
         <Trash2 class="h-3.5 w-3.5" /> 删除任务
       </button>
+    </div>
+
+    <!-- Delete confirmation dialog for completed tasks -->
+    <div v-if="deleteConfirmTask"
+      class="fixed inset-0 z-50 flex items-center justify-center"
+      :style="{ backgroundColor: 'rgba(0,0,0,0.4)' }"
+      @click.self="cancelDeleteTask"
+    >
+      <div class="w-80 rounded-xl p-5 shadow-2xl" :style="{ backgroundColor: '#2C2C2E', border: '1px solid #48484A' }">
+        <p class="text-sm font-medium" :style="{ color: '#F5F5F7' }">删除已完成的任务</p>
+        <p class="mt-2 text-xs" :style="{ color: '#A1A1A6' }">
+          是否同时删除已下载的文件？
+        </p>
+        <div class="mt-5 flex justify-end gap-2">
+          <button @click="cancelDeleteTask"
+            class="rounded-lg px-4 py-2 text-xs font-medium transition-colors"
+            :style="{ backgroundColor: '#3A3A3C', color: '#A1A1A6' }"
+            @mouseenter="$event.target.style.backgroundColor='#48484A'"
+            @mouseleave="$event.target.style.backgroundColor='#3A3A3C'"
+          >取消</button>
+          <button @click="confirmDeleteTask(false)"
+            class="rounded-lg px-4 py-2 text-xs font-medium transition-colors"
+            :style="{ backgroundColor: '#3A3A3C', color: '#F5F5F7' }"
+            @mouseenter="$event.target.style.backgroundColor='#48484A'"
+            @mouseleave="$event.target.style.backgroundColor='#3A3A3C'"
+          >仅删除任务</button>
+          <button @click="confirmDeleteTask(true)"
+            class="rounded-lg px-4 py-2 text-xs font-medium transition-colors"
+            :style="{ backgroundColor: '#EF4444', color: '#FFFFFF' }"
+            @mouseenter="$event.target.style.opacity='0.9'"
+            @mouseleave="$event.target.style.opacity='1'"
+          >删除任务及文件</button>
+        </div>
+      </div>
     </div>
 
     <EditThreadsDialog v-if="showEditThreads" :task="contextMenu.task" @close="showEditThreads = false" />

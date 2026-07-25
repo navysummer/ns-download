@@ -78,6 +78,7 @@ const proxyUrl = ref("");
 const userAgent = ref("");
 const cookie = ref("");
 const checksum = ref("");
+const overwrite = ref(false);
 const checksumAlgo = ref("sha-256");
 interface HeaderRow { key: string; value: string }
 const headerRows = reactive<HeaderRow[]>([]);
@@ -141,6 +142,7 @@ async function submit(later = false) {
     if (cookie.value.trim()) spec.cookies = cookie.value.trim();
     if (checksum.value.trim()) spec.checksum = checksumAlgo.value + '=' + checksum.value.trim();
     if (Object.keys(headers).length > 0) spec.extra_headers = headers;
+    if (overwrite.value) spec.overwrite = true;
     await store.addTask(spec);
   }
   emit("close");
@@ -223,6 +225,12 @@ function removeHeader(index: number) {
               :style="{ backgroundColor: '#1C1C1E', border: '1px solid #48484A', color: '#F5F5F7' }" />
           </div>
         </div>
+
+        <!-- Overwrite checkbox -->
+        <label class="flex cursor-pointer items-center gap-2 text-xs" :style="{ color: '#A1A1A6' }">
+          <input type="checkbox" v-model="overwrite" class="h-3.5 w-3.5 rounded" :style="{ accentColor: '#3B82F6' }" />
+          如果文件已存在，覆盖原文件（跳过自动重命名）
+        </label>
 
         <!-- Advanced toggle -->
         <button @click="showAdvanced = !showAdvanced" class="flex items-center gap-1 text-xs font-medium transition-colors" :style="{ color: '#8E8E93' }">
