@@ -10,6 +10,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
+use base64::Engine as _;
 use crate::bt_downloader::{self, BtConfig, BtDownloadParams, SharedBtSession, TorrentSource};
 use crate::dash_downloader;
 use crate::db::Db;
@@ -168,6 +169,45 @@ fn is_torrent_file_url(url: &str) -> bool {
 /// Determine if a URL represents any kind of BT download (magnet or .torrent file).
 fn is_bt_url(url: &str) -> bool {
     is_magnet(url) || is_torrent_file_url(url)
+}
+
+/// Detect whether a URL uses the Xunlei (Thunder) proprietary scheme.
+fn is_thunder_url(url: &str) -> bool {
+    url.get(..9)
+        .map(|prefix| prefix.eq_ignore_ascii_case("thunder://"))
+        .unwrap_or(false)
+}
+
+/// Decode a `thunder://` link into the real URL.
+///
+/// Thunder links are Base64-encoded with `AA` prepended and `ZZ` appended:
+/// `thunder://` + base64(`AA` + real_url + `ZZ`)
+///
+/// Returns `None` if the URL is not a thunder link or decoding fails.
+fn decode_thunder_url(url: &str) -> Option<String> {
+    if !is_thunder_url(url) {
+        return None;
+    }
+    let b64 = &url[9..]; // strip "thunder://"
+    // URL-safe base64 may use '-' and '_' instead of '+' and '/'
+    let b64 = b64.replace('-', "+").replace('_', "/");
+    // Add padding if needed
+    let b64 = match b64.len() % 4 {
+        2 => format!("{}==", b64),
+        3 => format!("{}=", b64),
+        _ => b64.to_string(),
+    };
+    use base64::Engine as _;
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(b64.as_bytes())
+        .ok()?;
+    let s = String::from_utf8(decoded).ok()?;
+    // Strip "AA" prefix and "ZZ" suffix
+    if s.starts_with("AA") && s.ends_with("ZZ") && s.len() > 4 {
+        Some(s[2..s.len() - 2].to_string())
+    } else {
+        None
+    }
 }
 
 /// 文件跟踪扫描的并发上限。`try_exists` 内部走 tokio blocking 线程池，限流以
@@ -2504,6 +2544,8 @@ impl DownloadManager {
             start_paused,
             overwrite,
         } = spec;
+        // Decode Xunlei (thunder://) links to the actual URL before any processing.
+        let url = decode_thunder_url(&url).unwrap_or(url);
         // 任务必属队列：未指定时归入内置主队列（'' 不再是有效归属，统一
         // 覆盖旧客户端信号 / aria2 / REST / CLI 等所有创建入口）。
         let queue_id = if queue_id.is_empty() {
@@ -2791,6 +2833,8 @@ impl DownloadManager {
             range_supported,
             overwrite,
         } = queued;
+        // Decode thunder:// links — handles both newly-created and legacy DB entries.
+        let url = decode_thunder_url(&url).unwrap_or(url);
 
         // Four-tier segment count priority:
         //   1. Task-level explicit choice (segments > 0) — highest priority

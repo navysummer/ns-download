@@ -126,6 +126,12 @@ function extBadge(name: string): string {
                 <ArrowDownWideNarrow v-else class="h-2.5 w-2.5" />
               </button>
             </th>
+            <th :style="{ width: '85px', padding: '0 4px', borderBottom: '1px solid #3A3A3C', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
+              <span class="text-2xs font-medium uppercase tracking-wider" :style="{ color: '#8E8E93' }">下载大小</span>
+            </th>
+            <th :style="{ width: '85px', padding: '0 4px', borderBottom: '1px solid #3A3A3C', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
+              <span class="text-2xs font-medium uppercase tracking-wider" :style="{ color: '#8E8E93' }">总大小</span>
+            </th>
             <th :style="{ width: '90px', padding: '0 4px', borderBottom: '1px solid #3A3A3C', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
               <button @click="store.setSort('speed')" class="inline-flex items-center justify-center gap-1 hover-text transition-colors">
                 速度
@@ -198,6 +204,16 @@ function extBadge(name: string): string {
                   {{ task.total_bytes > 0 ? Math.round((task.downloaded_bytes / task.total_bytes) * 100) : 0 }}%
                 </span>
               </div>
+            </td>
+
+            <!-- Downloaded size -->
+            <td :style="{ width: '85px', padding: '0 4px', textAlign: 'center', verticalAlign: 'middle', color: '#A1A1A6' }" class="text-xs tabular-nums">
+              {{ props.formatBytes(task.downloaded_bytes) }}
+            </td>
+
+            <!-- Total size -->
+            <td :style="{ width: '85px', padding: '0 4px', textAlign: 'center', verticalAlign: 'middle', color: '#A1A1A6' }" class="text-xs tabular-nums">
+              {{ task.total_bytes > 0 ? props.formatBytes(task.total_bytes) : '—' }}
             </td>
 
             <!-- Speed -->

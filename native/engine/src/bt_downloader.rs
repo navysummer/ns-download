@@ -5625,11 +5625,11 @@ mod tests {
     }
 
     #[test]
-    fn dedup_name_in_dir_fdownloading_temp_file_counts_as_occupied() {
+    fn dedup_name_in_dir_nsdownloading_temp_file_counts_as_occupied() {
         let dir = unique_test_dir("dedup_temp_occupied");
         let _ = std::fs::create_dir_all(&dir);
         // Only the in-progress temp file exists; the final name does not.
-        let _ = std::fs::write(dir.join("movie.mkv.fdownloading"), b"partial");
+        let _ = std::fs::write(dir.join("movie.mkv.nsdownloading"), b"partial");
 
         let name = super::dedup_name_in_dir(&dir, "movie.mkv", &HashSet::new());
         assert_eq!(name, "movie (1).mkv");

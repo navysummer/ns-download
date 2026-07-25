@@ -1210,6 +1210,16 @@ async fn run_hls_download_inner(p: &DownloadParams) -> Result<i64, DownloadError
                 )
                 .await;
 
+            // Estimate total bytes from average completed segment size × total segments.
+            // This gives the frontend a meaningful progress percentage instead of 0%.
+            let total_target = (segment_count - first_idx) as i64;
+            let segments_done = (next_to_write - first_idx) as i64;
+            let est_total_bytes = if segments_done > 0 && total_target > 0 {
+                ((downloaded_bytes as f64) * (total_target as f64) / (segments_done as f64)) as i64
+            } else {
+                0
+            };
+
             // Progress reporting (every 200ms)
             if last_report.elapsed().as_millis() >= 200 {
                 let _ = p
@@ -1217,7 +1227,7 @@ async fn run_hls_download_inner(p: &DownloadParams) -> Result<i64, DownloadError
                     .send(ProgressUpdate {
                         task_id: p.task_id.clone(),
                         downloaded_bytes,
-                        total_bytes: 0, // unknown for HLS
+                        total_bytes: est_total_bytes,
                         status: 1,
                         error_message: String::new(),
                         file_name: String::new(),
@@ -1693,13 +1703,23 @@ async fn download_segment_once(
 
     /// Maximum allowed size for a single HLS segment (256 MB).
     /// Prevents OOM if a malicious or misconfigured server sends an oversized segment.
+    /// Stall timeout per chunk read (matching the HTTP downloader's policy).
+    const CHUNK_STALL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
     const MAX_SEGMENT_BYTES: usize = 256 * 1024 * 1024;
 
     let mut buf = Vec::new();
     loop {
         let chunk = tokio::select! {
             _ = cancel_token.cancelled() => return Err(DownloadError::Cancelled),
-            c = stream.next() => c,
+            c = tokio::time::timeout(CHUNK_STALL_TIMEOUT, stream.next()) => {
+                match c {
+                    Ok(Some(result)) => Some(result),
+                    Ok(None) => None,
+                    Err(_) => return Err(DownloadError::Other(
+                        "HLS segment chunk stalled (no data received in 10s)".to_string()
+                    )),
+                }
+            }
         };
         let Some(chunk_result) = chunk else {
             break;
