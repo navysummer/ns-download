@@ -126,7 +126,6 @@ jobs:
         shell: bash
         run: |
           eval "$(fnm env)"
-          pnpm approve-builds vue-demi
           pnpm install --frozen-lockfile
 
       - name: Build with Tauri
@@ -206,7 +205,6 @@ jobs:
         shell: bash
         run: |
           eval "$(fnm env)"
-          pnpm approve-builds vue-demi
           pnpm install --frozen-lockfile
 
       - name: Build Android APK
@@ -263,7 +261,6 @@ jobs:
         shell: bash
         run: |
           eval "$(fnm env)"
-          pnpm approve-builds vue-demi
           pnpm install --frozen-lockfile
 
       - name: Build iOS
