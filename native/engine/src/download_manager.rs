@@ -10,7 +10,6 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use base64::Engine as _;
 use crate::bt_downloader::{self, BtConfig, BtDownloadParams, SharedBtSession, TorrentSource};
 use crate::dash_downloader;
 use crate::db::Db;
@@ -2708,7 +2707,7 @@ impl DownloadManager {
             resolver_plugin_id,
             resolved: false,
             range_supported: false,
-            overwrite: spec.overwrite,
+            overwrite,
         };
         if is_bt || (self.has_capacity() && self.has_queue_capacity(&queued.queue_id)) {
             self.do_start_task(queued).await;
@@ -5438,8 +5437,6 @@ pub async fn progress_reporter(
         // For terminal states (completed / error / paused) always send immediately.
         // For downloading (status=1) and preparing (status=5), rate-limit to avoid flooding Dart.
         let is_terminal = update.status != 1 && update.status != 5;
-        // Status transitions (e.g. preparing→downloading) must also be sent
-        // immediately so the UI never skips an intermediate state.
         let is_status_change = update.status != state.last_sent_status;
         let should_send = is_terminal || is_status_change || {
             let last = last_dart_send.get(&update.task_id);
@@ -5447,13 +5444,23 @@ pub async fn progress_reporter(
                 || now.duration_since(*last.unwrap_or(&now)).as_millis() >= MIN_DART_INTERVAL_MS
         };
 
-        // Always send if this update carries a newly resolved file_name.
         let has_new_name = !update.file_name.is_empty();
 
+        log_info!(
+            "[progress_reporter] task {} status={} dl={} total={} speed(ema)={} should_send={} is_terminal={} is_status_change={} rate_limit_ms={}",
+            update.task_id, update.status, update.downloaded_bytes, update.total_bytes,
+            smoothed_speed, should_send, is_terminal, is_status_change,
+            last_dart_send.get(&update.task_id)
+                .map(|t| now.duration_since(*t).as_millis())
+                .unwrap_or(9999)
+        );
+
         if should_send || has_new_name {
-            // Terminal states (completed / error / paused) should report zero
-            // speed so the UI doesn't show a stale EMA value.
             let report_speed = if is_terminal { 0 } else { smoothed_speed };
+            log_info!(
+                "[progress_reporter] EMITTING TaskProgress task={} speed={}",
+                update.task_id, report_speed
+            );
             sink.emit(EngineEvent::TaskProgress {
                 task_id: update.task_id.clone(),
                 status: update.status,

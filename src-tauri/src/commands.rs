@@ -112,7 +112,9 @@ pub async fn init_engine(app_handle: tauri::AppHandle, state: State<'_, AppState
     // block forever on send, making tasks appear stuck in "preparing" state.
     let progress_rx = engine.manager.take_progress_rx();
     let done_rx = engine.manager.take_done_rx();
+    let retry_rx = engine.manager.take_retry_rx();
     let engine_for_done = state.engine.clone();
+    let engine_for_retry = state.engine.clone();
     let db = engine.db.clone();
 
     *engine_guard = Some(engine);
@@ -134,6 +136,20 @@ pub async fn init_engine(app_handle: tauri::AppHandle, state: State<'_, AppState
                 let mut guard = engine_for_done.lock().await;
                 if let Some(ref mut eng) = *guard {
                     eng.manager.on_task_done(&done).await;
+                } else {
+                    break;
+                }
+            }
+        });
+    }
+
+    // Spawn the retry handler so auto-retry actually resumes tasks.
+    if let Some(mut rx) = retry_rx {
+        tokio::spawn(async move {
+            while let Some(task_id) = rx.recv().await {
+                let mut guard = engine_for_retry.lock().await;
+                if let Some(ref mut eng) = *guard {
+                    eng.manager.resume_task_auto(&task_id).await;
                 } else {
                     break;
                 }

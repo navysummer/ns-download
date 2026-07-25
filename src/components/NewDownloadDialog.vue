@@ -115,37 +115,47 @@ async function pickSaveDir() {
   if (selected) saveDir.value = selected;
 }
 
-async function submit(later = false) {
+function submit(later = false) {
   if (!url.value.trim()) return;
   const entries = url.value.trim().split('\n').filter(l => l.trim() && !l.trim().startsWith('#'));
+  if (entries.length === 0) return;
   const headers: Record<string, string> = {};
   for (const h of headerRows) {
     if (h.key.trim()) headers[h.key.trim()] = h.value;
   }
-  for (const entry of entries) {
-    const spec: any = {
-      url: entry.trim(),
-      save_dir: saveDir.value,
-      file_name: rename.value || undefined,
-      segments: parseInt(segments.value) || 0,
-    };
-    // Torrent-specific fields
-    if (torrentMeta.value && selectedFileIndices.value.length > 0) {
-      const { readFile } = await import("@tauri-apps/plugin-fs");
-      const bytes = await readFile(torrentFile.value);
-      spec.torrent_file_bytes = Array.from(bytes);
-      spec.selected_file_indices = selectedFileIndices.value;
-    }
-    // Advanced fields
-    if (proxyUrl.value.trim()) spec.proxy_url = proxyUrl.value.trim();
-    if (userAgent.value.trim()) spec.user_agent = userAgent.value.trim();
-    if (cookie.value.trim()) spec.cookies = cookie.value.trim();
-    if (checksum.value.trim()) spec.checksum = checksumAlgo.value + '=' + checksum.value.trim();
-    if (Object.keys(headers).length > 0) spec.extra_headers = headers;
-    if (overwrite.value) spec.overwrite = true;
-    await store.addTask(spec);
-  }
+  // Close the dialog immediately — do not wait for backend.
   emit("close");
+
+  // Build spec and fire task creation asynchronously.
+  (async () => {
+    const hasTorrent = !!(torrentMeta.value && selectedFileIndices.value.length > 0);
+    let torrentBytes: number[] | undefined;
+    let torrentIndices: number[] | undefined;
+    if (hasTorrent) {
+      const { readFile } = await import("@tauri-apps/plugin-fs");
+      torrentBytes = Array.from(await readFile(torrentFile.value));
+      torrentIndices = selectedFileIndices.value;
+    }
+    for (const entry of entries) {
+      const spec: any = {
+        url: entry.trim(),
+        save_dir: saveDir.value,
+        file_name: rename.value || undefined,
+        segments: parseInt(segments.value) || 0,
+      };
+      if (hasTorrent) {
+        spec.torrent_file_bytes = torrentBytes;
+        spec.selected_file_indices = torrentIndices;
+      }
+      if (proxyUrl.value.trim()) spec.proxy_url = proxyUrl.value.trim();
+      if (userAgent.value.trim()) spec.user_agent = userAgent.value.trim();
+      if (cookie.value.trim()) spec.cookies = cookie.value.trim();
+      if (checksum.value.trim()) spec.checksum = checksumAlgo.value + '=' + checksum.value.trim();
+      if (Object.keys(headers).length > 0) spec.extra_headers = headers;
+      if (overwrite.value) spec.overwrite = true;
+      await store.addTask(spec);
+    }
+  })();
 }
 
 function addHeader() {

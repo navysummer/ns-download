@@ -71,18 +71,19 @@ const RETRY_BASE_DELAY: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// Upper bound on concurrent segment downloads.
 ///
-/// Capped at 16 to bound CDN per-IP connection pressure: HLS playlists often
-/// have hundreds of tiny segments, and opening dozens of parallel connections
-/// to a single streaming CDN risks tripping per-IP limits or throttling.
-/// This ceiling is intentionally independent of `build_client`'s idle-pool
-/// size (`pool_max_idle_per_host`, sized for the 64-segment HTTP path) —
-/// the pool is large enough to keep every HLS connection warm regardless.
-const MAX_HLS_CONCURRENCY: usize = 16;
+/// Higher concurrency smooths progress by reducing the per-batch wait for the
+/// slowest segment.  Capped at 32 to keep CDN per-IP connection pressure
+/// manageable — most HLS CDNs handle 32 parallel connections well, and the
+/// segment advisory bandwidth probe naturally limits total concurrency when
+/// the connection is slow.  The `build_client` idle pool
+/// (`pool_max_idle_per_host = 64`) is large enough to keep every HLS
+/// connection warm.
+const MAX_HLS_CONCURRENCY: usize = 32;
 
 /// Concurrency used when the user left the segment count on "auto"
-/// (`segment_count <= 0`). Conservative enough to help every playlist without
-/// hammering small CDNs.
-const DEFAULT_HLS_CONCURRENCY: usize = 8;
+/// (`segment_count <= 0`).  24 is a good balance: fast enough for common
+/// 64-segment playlists without overwhelming small CDNs.
+const DEFAULT_HLS_CONCURRENCY: usize = 24;
 
 /// Pick the number of segments to download in parallel.
 ///
@@ -231,7 +232,13 @@ pub async fn parse_m3u8(
     // 应用浏览器扩展捕获的额外请求头
     req = crate::downloader::apply_extra_headers(req, extra_headers);
 
-    let resp = req.send().await?.error_for_status()?;
+    const PLAYLIST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+    let resp = tokio::time::timeout(PLAYLIST_TIMEOUT, req.send())
+        .await
+        .map_err(|_| {
+            DownloadError::Other("M3U8 playlist request timed out (30s)".to_string())
+        })??
+        .error_for_status()?;
     // 相对 URI 必须以"最终检索到的资源 URL"为 base 解析(RFC 3986 §5.1)。
     // reqwest 默认跟随重定向(见 downloader.rs),播放列表被负载均衡/短链
     // 重定向时,请求 url 与实际返回内容的 URL 不同;若仍用请求前的 url 作
@@ -430,7 +437,13 @@ async fn fetch_key(
     // 应用浏览器扩展捕获的额外请求头
     req = crate::downloader::apply_extra_headers(req, extra_headers);
 
-    let resp = req.send().await?.error_for_status()?;
+    const KEY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+    let resp = tokio::time::timeout(KEY_TIMEOUT, req.send())
+        .await
+        .map_err(|_| {
+            DownloadError::Other("HLS key request timed out (30s)".to_string())
+        })??
+        .error_for_status()?;
     let key_bytes = resp.bytes().await?.to_vec();
 
     if key_bytes.len() != 16 {
@@ -1052,17 +1065,18 @@ async fn run_hls_download_inner(p: &DownloadParams) -> Result<i64, DownloadError
         let tx = result_tx.clone();
 
         producers.push(tokio::spawn(async move {
-            // Hold the permit across download + decrypt + send so in-flight work
-            // (and buffered decrypted bytes) stays bounded by `concurrency`.
             let _permit = match sem.acquire().await {
                 Ok(permit) => permit,
-                // Semaphore closed — runtime shutting down; nothing to send.
                 Err(_) => return,
             };
             if cancel.is_cancelled() {
                 let _ = tx.send((seg_idx, Err(DownloadError::Cancelled))).await;
                 return;
             }
+            log_info!(
+                "[hls-download] task {} segment {} download starting, uri={}",
+                task_id, seg_idx, uri
+            );
             let outcome = download_and_decrypt_segment(
                 &client,
                 &uri,
@@ -1101,11 +1115,49 @@ async fn run_hls_download_inner(p: &DownloadParams) -> Result<i64, DownloadError
             break;
         }
 
-        // If the next segment isn't buffered yet, wait for more completions.
         while !pending.contains_key(&next_to_write) {
             match result_rx.recv().await {
                 Some((idx, Ok(data))) => {
+                    log_info!(
+                        "[hls-download] task {} segment {} downloaded ({} bytes), waiting for seg {}",
+                        p.task_id, idx, data.len(), next_to_write
+                    );
                     pending.insert(idx, data);
+                    // Report progress from buffered segments even while waiting
+                    // for the next in-order segment.  Without this, if segment 0
+                    // is slow, the UI shows 0% until it completes.
+                    if last_report.elapsed().as_millis() >= 200 {
+                        let buffered: i64 = pending.values().map(|d| d.len() as i64).sum();
+                        let total_dl = downloaded_bytes + buffered;
+                        let segs_written = (next_to_write - first_idx) as i64;
+                        let segs_known = segs_written + pending.len() as i64;
+                        let total_target = (segment_count - first_idx) as i64;
+                        let est_total = if segs_known > 0 && total_target > 0 {
+                            ((total_dl as f64) * (total_target as f64) / (segs_known as f64)) as i64
+                        } else {
+                            total_dl
+                        };
+                        let sent = p
+                            .progress_tx
+                            .send(ProgressUpdate {
+                                task_id: p.task_id.clone(),
+                                downloaded_bytes: total_dl,
+                                total_bytes: est_total,
+                                status: 1,
+                                error_message: String::new(),
+                                file_name: String::new(),
+                                segment_details: None,
+                                ..Default::default()
+                            })
+                            .await;
+                        if sent.is_err() {
+                            log_info!(
+                                "[hls-download] task {} WARN: progress_tx send failed in wait loop",
+                                p.task_id
+                            );
+                        }
+                        last_report = std::time::Instant::now();
+                    }
                 }
                 Some((idx, Err(e))) => {
                     // A segment failed permanently. Cancel siblings and stop;
@@ -1210,23 +1262,32 @@ async fn run_hls_download_inner(p: &DownloadParams) -> Result<i64, DownloadError
                 )
                 .await;
 
-            // Estimate total bytes from average completed segment size × total segments.
-            // This gives the frontend a meaningful progress percentage instead of 0%.
+            // Use bytes written + buffered (pending) bytes as the monotonic
+            // progress value.  This never regresses: when the writer drains a
+            // buffered segment, downloaded_bytes increases by the same amount
+            // that pending shrinks, so the sum stays constant.
+            let buffered: i64 = pending.values().map(|d| d.len() as i64).sum();
+            let reported_dl = downloaded_bytes + buffered;
+            let segs_written = (next_to_write - first_idx) as i64;
+            let segs_known = segs_written + pending.len() as i64;
             let total_target = (segment_count - first_idx) as i64;
-            let segments_done = (next_to_write - first_idx) as i64;
-            let est_total_bytes = if segments_done > 0 && total_target > 0 {
-                ((downloaded_bytes as f64) * (total_target as f64) / (segments_done as f64)) as i64
+            let est_total_bytes = if segs_known > 0 && total_target > 0 {
+                ((reported_dl as f64) * (total_target as f64) / (segs_known as f64)) as i64
             } else {
-                0
+                reported_dl
             };
 
             // Progress reporting (every 200ms)
             if last_report.elapsed().as_millis() >= 200 {
+                log_info!(
+                    "[hls-download] task {} SENDING PROGRESS: reported_dl={}, downloaded={}, buffered={}, total_est={}",
+                    p.task_id, reported_dl, downloaded_bytes, buffered, est_total_bytes
+                );
                 let _ = p
                     .progress_tx
                     .send(ProgressUpdate {
                         task_id: p.task_id.clone(),
-                        downloaded_bytes,
+                        downloaded_bytes: reported_dl,
                         total_bytes: est_total_bytes,
                         status: 1,
                         error_message: String::new(),
@@ -1575,6 +1636,10 @@ async fn download_segment_with_retry(
     let mut attempts = 0u32;
 
     loop {
+        log_info!(
+            "[hls-download] task {} segment {} calling download_segment_once (attempt {})",
+            task_id, seg_idx, attempts + 1
+        );
         match download_segment_once(
             client,
             url,
@@ -1586,7 +1651,13 @@ async fn download_segment_with_retry(
         )
         .await
         {
-            Ok(data) => return Ok(data),
+            Ok(data) => {
+                log_info!(
+                    "[hls-download] task {} segment {} downloaded {} bytes successfully",
+                    task_id, seg_idx, data.len()
+                );
+                return Ok(data);
+            }
             Err(DownloadError::Cancelled) => return Err(DownloadError::Cancelled),
             Err(e) => {
                 attempts += 1;
@@ -1653,9 +1724,20 @@ async fn download_segment_once(
         req = req.header("Range", format!("bytes={}-{}", offset, range_end));
     }
 
+    /// Timeout for waiting on response headers (server accepted TCP but
+    /// doesn't send data).  Body-chunk reads have their own CHUNK_STALL_TIMEOUT.
+    const RESPONSE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
     let resp = tokio::select! {
         _ = cancel_token.cancelled() => return Err(DownloadError::Cancelled),
-        r = req.send() => r?.error_for_status()?,
+        r = tokio::time::timeout(RESPONSE_TIMEOUT, req.send()) => {
+            match r {
+                Ok(result) => result?.error_for_status()?,
+                Err(_) => return Err(DownloadError::Other(
+                    "HLS segment request timed out (no response in 30s)".to_string()
+                )),
+            }
+        },
     };
 
     // ranged 请求(EXT-X-BYTERANGE)必须得到 206 Partial Content。若服务器忽略

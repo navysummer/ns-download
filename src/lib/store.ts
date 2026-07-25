@@ -300,7 +300,10 @@ export const useDownloadStore = defineStore("download", () => {
     extra_headers?: Record<string, string>;
   }) {
     try {
-      await invoke("create_task", { spec });
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("create_task timed out after 15s")), 15000)
+      );
+      await Promise.race([invoke("create_task", { spec }), timeout]);
       await loadTasks();
     } catch (e) {
       console.error("Failed to create task:", e);

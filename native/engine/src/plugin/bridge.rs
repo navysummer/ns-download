@@ -3,6 +3,7 @@ use crate::downloader::DownloadError;
 use crate::plugin::{PluginBridge, PluginError, ResolveRequest, ResolveResult};
 use crate::proxy_config::ProxyConfig;
 
+#[allow(dead_code)]
 pub struct EngineBridge {
     db: Db,
     retry_tx: tokio::sync::mpsc::UnboundedSender<(String, u64)>,

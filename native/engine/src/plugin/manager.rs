@@ -3,6 +3,7 @@ use crate::db::Db;
 use crate::events::EventSink;
 use crate::plugin::{PluginBridge, PluginInfo, ScriptRuntime};
 
+#[allow(dead_code)]
 pub struct PluginManager {
     runtime: Arc<dyn ScriptRuntime>,
     bridge: Arc<dyn PluginBridge>,

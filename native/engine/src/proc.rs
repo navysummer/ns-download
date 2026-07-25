@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub fn is_process_running(pid: u32) -> bool {
     #[cfg(unix)]
     {
@@ -23,6 +24,7 @@ pub fn is_process_running(pid: u32) -> bool {
     }
 }
 
+#[allow(dead_code)]
 pub fn find_process_by_name(name: &str) -> Vec<u32> {
     let mut pids = Vec::new();
     #[cfg(unix)]
@@ -58,10 +60,12 @@ pub fn find_process_by_name(name: &str) -> Vec<u32> {
 
 use std::path::PathBuf;
 
+#[allow(dead_code)]
 pub fn current_exe_path() -> Option<PathBuf> {
     std::env::current_exe().ok()
 }
 
+#[allow(dead_code)]
 pub fn no_console_window(cmd: &mut std::process::Command) {
     #[cfg(windows)]
     {
