@@ -7,10 +7,10 @@ pub fn is_process_running(pid: u32) -> bool {
     #[cfg(windows)]
     {
         use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, WaitForSingleObject};
-        use windows_sys::Win32::Foundation::{WAIT_OBJECT_0, WAIT_TIMEOUT};
+        use windows_sys::Win32::Foundation::WAIT_TIMEOUT;
         unsafe {
             let handle = OpenProcess(PROCESS_QUERY_INFORMATION, 0, pid);
-            if handle == 0 { return false; }
+            if handle.is_null() { return false; }
             let ret = WaitForSingleObject(handle, 0);
             let running = ret == WAIT_TIMEOUT;
             let _ = windows_sys::Win32::Foundation::CloseHandle(handle);

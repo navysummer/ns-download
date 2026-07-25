@@ -141,6 +141,7 @@ jobs:
           CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
           PKG_CONFIG_ALLOW_CROSS: "1"
           PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig
+          APPIMAGE_EXTRACT_AND_RUN: "1"
         run: |
           eval "$(fnm env)"
           pnpm tauri build --target ${{ matrix.target }}
