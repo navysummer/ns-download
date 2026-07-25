@@ -269,7 +269,7 @@ jobs:
         run: |
           eval "$(fnm env)"
           pnpm tauri ios init
-          pnpm tauri ios build
+          pnpm tauri ios build --no-sign
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
