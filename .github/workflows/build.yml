@@ -126,7 +126,12 @@ jobs:
         shell: bash
         run: |
           eval "$(fnm env)"
-          pnpm install --frozen-lockfile
+          # 安装依赖并处理构建脚本批准
+          pnpm install --frozen-lockfile || {
+            echo "First install attempt failed, approving builds..."
+            echo "y" | pnpm approve-builds
+            pnpm install --frozen-lockfile
+          }
 
       - name: Build with Tauri
         shell: bash
@@ -205,7 +210,12 @@ jobs:
         shell: bash
         run: |
           eval "$(fnm env)"
-          pnpm install --frozen-lockfile
+          # 安装依赖并处理构建脚本批准
+          pnpm install --frozen-lockfile || {
+            echo "First install attempt failed, approving builds..."
+            echo "y" | pnpm approve-builds
+            pnpm install --frozen-lockfile
+          }
 
       - name: Build Android APK
         shell: bash
@@ -261,7 +271,12 @@ jobs:
         shell: bash
         run: |
           eval "$(fnm env)"
-          pnpm install --frozen-lockfile
+          # 安装依赖并处理构建脚本批准
+          pnpm install --frozen-lockfile || {
+            echo "First install attempt failed, approving builds..."
+            echo "y" | pnpm approve-builds
+            pnpm install --frozen-lockfile
+          }
 
       - name: Build iOS
         shell: bash
@@ -294,21 +309,25 @@ jobs:
       - name: Organize release files
         run: |
           mkdir -p release
-          find artifacts -type f | while read f; do
-            dir=$(basename "$(dirname "$f")")
-            ext="${f##*.}"
-            if [ "$ext" = "deb" ] || [ "$ext" = "rpm" ] || [ "$ext" = "AppImage" ]; then
-              cp "$f" "release/${dir}.${ext}"
-            elif [ "$ext" = "dmg" ]; then
-              cp "$f" "release/${dir}.dmg"
-            elif [ "$ext" = "msi" ] || [ "$ext" = "exe" ] || [ "$ext" = "nupkg" ]; then
-              cp "$f" "release/${dir}.${ext}"
-            elif [ "$ext" = "apk" ]; then
-              cp "$f" "release/ns-download-${dir}.apk"
-            elif [ "$ext" = "ipa" ]; then
-              cp "$f" "release/ns-download-${dir}.ipa"
-            fi
+          # 处理 Linux 文件
+          for ext in deb rpm AppImage; do
+            find artifacts -name "*.${ext}" -exec cp {} "release/linux.${ext}" \; 2>/dev/null || true
           done
+
+          # 处理 macOS 文件
+          find artifacts -name "*.dmg" -exec cp {} "release/macos.dmg" \; 2>/dev/null || true
+
+          # 处理 Windows 文件
+          for ext in msi exe nupkg; do
+            find artifacts -name "*.${ext}" -exec cp {} "release/windows.${ext}" \; 2>/dev/null || true
+          done
+
+          # 处理 Android 文件
+          find artifacts -name "*.apk" -exec cp {} "release/ns-download-android.apk" \; 2>/dev/null || true
+
+          # 处理 iOS 文件
+          find artifacts -name "*.ipa" -exec cp {} "release/ns-download-ios.ipa" \; 2>/dev/null || true
+
           ls -la release/
 
       - name: Upload to GitHub Release
