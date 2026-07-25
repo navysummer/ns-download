@@ -15,6 +15,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
+  NODE_VERSION: "22"
 
 jobs:
   # ── Desktop builds ──────────────────────────────────────────────
@@ -54,11 +55,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "npm"
+      - name: Setup Node.js via fnm
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            # fnm on Windows
+            choco install fnm -y
+            echo "FNM_DIR=$HOME/.fnm" >> $GITHUB_ENV
+            echo "$HOME/.fnm" >> $GITHUB_PATH
+          else
+            curl -fsSL https://fnm.vercel.app/install | bash
+            echo "$HOME/.local/share/fnm" >> $GITHUB_PATH
+            echo "$HOME/.local/share/fnm/aliases/default/bin" >> $GITHUB_PATH
+          fi
+          echo "FNM_COREPACK_ENABLED=true" >> $GITHUB_ENV
+
+      - name: Install Node ${{ env.NODE_VERSION }}
+        shell: bash
+        run: |
+          eval "$(fnm env)"
+          fnm install ${{ env.NODE_VERSION }}
+          fnm use ${{ env.NODE_VERSION }}
+          echo "node-version=$(node -v)" >> $GITHUB_OUTPUT
+        id: node
+
+      - name: Enable pnpm
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
+          echo "pnpm-version=$(pnpm -v)" >> $GITHUB_OUTPUT
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -85,7 +111,6 @@ jobs:
           sudo apt-get install -yqq \
             gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
             pkg-config-aarch64-linux-gnu
-          # Install ARM64 system libraries
           sudo dpkg --add-architecture arm64
           sudo apt-get update -qq
           sudo apt-get install -yqq \
@@ -98,17 +123,23 @@ jobs:
         run: |
           brew install gtk+3 adwaita-icon-theme
 
-      - name: npm install
-        run: npm ci
+      - name: Install JS dependencies
+        shell: bash
+        run: |
+          eval "$(fnm env)"
+          pnpm install --frozen-lockfile
 
       - name: Build with Tauri
+        shell: bash
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
           CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
           PKG_CONFIG_ALLOW_CROSS: "1"
           PKG_CONFIG_PATH: /usr/lib/aarch64-linux-gnu/pkgconfig
-        run: npx tauri build --target ${{ matrix.target }}
+        run: |
+          eval "$(fnm env)"
+          pnpm tauri build --target ${{ matrix.target }}
 
       - name: Upload bundle
         uses: actions/upload-artifact@v4
@@ -124,11 +155,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "npm"
+      - name: Setup Node.js via fnm
+        shell: bash
+        run: |
+          curl -fsSL https://fnm.vercel.app/install | bash
+          echo "$HOME/.local/share/fnm" >> $GITHUB_PATH
+          echo "$HOME/.local/share/fnm/aliases/default/bin" >> $GITHUB_PATH
+          echo "FNM_COREPACK_ENABLED=true" >> $GITHUB_ENV
+
+      - name: Install Node ${{ env.NODE_VERSION }}
+        shell: bash
+        run: |
+          eval "$(fnm env)"
+          fnm install ${{ env.NODE_VERSION }}
+          fnm use ${{ env.NODE_VERSION }}
+
+      - name: Enable pnpm
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -156,11 +202,17 @@ jobs:
       - name: Install Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: npm install
-        run: npm ci
+      - name: Install JS dependencies
+        shell: bash
+        run: |
+          eval "$(fnm env)"
+          pnpm install --frozen-lockfile
 
       - name: Build Android APK
-        run: npx tauri android build --apk
+        shell: bash
+        run: |
+          eval "$(fnm env)"
+          pnpm tauri android build --apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -175,11 +227,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: "npm"
+      - name: Setup Node.js via fnm
+        shell: bash
+        run: |
+          curl -fsSL https://fnm.vercel.app/install | bash
+          echo "$HOME/.local/share/fnm" >> $GITHUB_PATH
+          echo "$HOME/.local/share/fnm/aliases/default/bin" >> $GITHUB_PATH
+          echo "FNM_COREPACK_ENABLED=true" >> $GITHUB_ENV
+
+      - name: Install Node ${{ env.NODE_VERSION }}
+        shell: bash
+        run: |
+          eval "$(fnm env)"
+          fnm install ${{ env.NODE_VERSION }}
+          fnm use ${{ env.NODE_VERSION }}
+
+      - name: Enable pnpm
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@latest --activate
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -191,11 +258,17 @@ jobs:
         with:
           workspaces: src-tauri -> target
 
-      - name: npm install
-        run: npm ci
+      - name: Install JS dependencies
+        shell: bash
+        run: |
+          eval "$(fnm env)"
+          pnpm install --frozen-lockfile
 
       - name: Build iOS
-        run: npx tauri ios build
+        shell: bash
+        run: |
+          eval "$(fnm env)"
+          pnpm tauri ios build
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
@@ -222,7 +295,6 @@ jobs:
       - name: Organize release files
         run: |
           mkdir -p release
-          # Flatten and rename artifacts
           find artifacts -type f | while read f; do
             dir=$(basename "$(dirname "$f")")
             ext="${f##*.}"
