@@ -2,14 +2,15 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use axum::{
     Router,
-    extract::State,
+    extract::{State, Path},
     http::{StatusCode, HeaderMap},
     response::{IntoResponse, Response, Json},
-    routing::{get, post},
+    routing::{get, post, put, delete},
     middleware,
 };
 use tokio::sync::Mutex;
 use ns_download_engine::Engine;
+use ns_download_engine::download_manager::NewTaskSpec;
 
 type EngineRef = Arc<Mutex<Option<Engine>>>;
 
@@ -53,6 +54,47 @@ async fn handle_takeover() -> Json<serde_json::Value> {
             "mcp": "/mcp"
         }
     }))
+}
+
+async fn handle_takeover_post(
+    State(srv): State<Arc<ServerState>>,
+    Json(body): Json<serde_json::Value>,
+) -> Json<serde_json::Value> {
+    let url = body.get("url").and_then(|u| u.as_str()).unwrap_or("");
+    if url.is_empty() {
+        return Json(serde_json::json!({"status": "error", "message": "missing url parameter"}));
+    }
+    let mut engine = srv.engine.lock().await;
+    match engine.as_mut() {
+        Some(eng) => {
+            let spec = NewTaskSpec {
+                url: url.to_string(),
+                save_dir: String::new(),
+                file_name: String::new(),
+                segments: 0,
+                cookies: String::new(),
+                referrer: String::new(),
+                hint_file_size: 0,
+                torrent_file_bytes: Vec::new(),
+                proxy_url: String::new(),
+                user_agent: String::new(),
+                queue_id: String::new(),
+                checksum: String::new(),
+                extra_headers: std::collections::HashMap::new(),
+                selected_file_indices: Vec::new(),
+                method: None,
+                body: None,
+                audio_url: None,
+                start_paused: false,
+                overwrite: false,
+            };
+            match eng.manager.create_task(spec).await {
+                Some(task_id) => Json(serde_json::json!({"status": "ok", "task_id": task_id})),
+                None => Json(serde_json::json!({"status": "error", "message": "failed to create task"})),
+            }
+        }
+        None => Json(serde_json::json!({"status": "error", "message": "engine not initialized"})),
+    }
 }
 
 async fn handle_jsonrpc(
@@ -153,6 +195,89 @@ async fn list_tasks(
     }
 }
 
+async fn create_task_api(
+    State(srv): State<Arc<ServerState>>,
+    Json(body): Json<serde_json::Value>,
+) -> Json<serde_json::Value> {
+    let url = body.get("url").and_then(|u| u.as_str()).unwrap_or("");
+    if url.is_empty() {
+        return Json(serde_json::json!({"status": "error", "message": "missing url parameter"}));
+    }
+    let mut engine = srv.engine.lock().await;
+    match engine.as_mut() {
+        Some(eng) => {
+            let spec = NewTaskSpec {
+                url: url.to_string(),
+                save_dir: body.get("save_dir").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                file_name: body.get("file_name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                segments: body.get("segments").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
+                cookies: body.get("cookies").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                referrer: body.get("referrer").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                hint_file_size: body.get("hint_file_size").and_then(|v| v.as_i64()).unwrap_or(0),
+                torrent_file_bytes: Vec::new(),
+                proxy_url: body.get("proxy_url").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                user_agent: body.get("user_agent").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                queue_id: body.get("queue_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                checksum: body.get("checksum").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                extra_headers: std::collections::HashMap::new(),
+                selected_file_indices: Vec::new(),
+                method: None,
+                body: None,
+                audio_url: None,
+                start_paused: body.get("start_paused").and_then(|v| v.as_bool()).unwrap_or(false),
+                overwrite: body.get("overwrite").and_then(|v| v.as_bool()).unwrap_or(false),
+            };
+            match eng.manager.create_task(spec).await {
+                Some(task_id) => Json(serde_json::json!({"status": "ok", "task_id": task_id})),
+                None => Json(serde_json::json!({"status": "error", "message": "failed to create task"})),
+            }
+        }
+        None => Json(serde_json::json!({"status": "error", "message": "engine not initialized"})),
+    }
+}
+
+async fn remove_task_api(
+    State(srv): State<Arc<ServerState>>,
+    Path(id): Path<String>,
+) -> Json<serde_json::Value> {
+    let mut engine = srv.engine.lock().await;
+    match engine.as_mut() {
+        Some(eng) => {
+            eng.manager.delete_task(&id, false).await;
+            Json(serde_json::json!({"status": "ok"}))
+        }
+        None => Json(serde_json::json!({"status": "error", "message": "engine not initialized"})),
+    }
+}
+
+async fn pause_task_api(
+    State(srv): State<Arc<ServerState>>,
+    Path(id): Path<String>,
+) -> Json<serde_json::Value> {
+    let mut engine = srv.engine.lock().await;
+    match engine.as_mut() {
+        Some(eng) => {
+            eng.manager.pause_task(&id).await;
+            Json(serde_json::json!({"status": "ok"}))
+        }
+        None => Json(serde_json::json!({"status": "error", "message": "engine not initialized"})),
+    }
+}
+
+async fn resume_task_api(
+    State(srv): State<Arc<ServerState>>,
+    Path(id): Path<String>,
+) -> Json<serde_json::Value> {
+    let mut engine = srv.engine.lock().await;
+    match engine.as_mut() {
+        Some(eng) => {
+            eng.manager.resume_task(&id).await;
+            Json(serde_json::json!({"status": "ok"}))
+        }
+        None => Json(serde_json::json!({"status": "error", "message": "engine not initialized"})),
+    }
+}
+
 async fn shutdown_signal(mut rx: tokio::sync::mpsc::Receiver<ServerCommand>) {
     rx.recv().await;
 }
@@ -162,14 +287,30 @@ pub async fn run_server(
     port: u16,
     token: String,
     shutdown_rx: tokio::sync::mpsc::Receiver<ServerCommand>,
+    takeover_enabled: bool,
+    jsonrpc_enabled: bool,
+    api_enabled: bool,
+    mcp_enabled: bool,
 ) -> Result<(), String> {
     let srv_state = Arc::new(ServerState { engine, token });
 
-    let app = Router::new()
-        .route("/", get(handle_takeover).post(handle_takeover))
-        .route("/jsonrpc", post(handle_jsonrpc))
-        .route("/mcp", post(handle_mcp))
-        .route("/api/v1/tasks", get(list_tasks))
+    let mut router = Router::new();
+    if takeover_enabled {
+        router = router.route("/", get(handle_takeover).post(handle_takeover_post));
+    }
+    if jsonrpc_enabled {
+        router = router.route("/jsonrpc", post(handle_jsonrpc));
+    }
+    if api_enabled {
+        router = router.route("/api/v1/tasks", get(list_tasks).post(create_task_api));
+        router = router.route("/api/v1/tasks/{id}", delete(remove_task_api));
+        router = router.route("/api/v1/tasks/{id}/pause", put(pause_task_api));
+        router = router.route("/api/v1/tasks/{id}/resume", put(resume_task_api));
+    }
+    if mcp_enabled {
+        router = router.route("/mcp", post(handle_mcp));
+    }
+    let app = router
         .layer(middleware::from_fn_with_state(srv_state.clone(), auth_middleware))
         .with_state(srv_state);
 

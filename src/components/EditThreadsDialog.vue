@@ -51,7 +51,7 @@ async function submit() {
         <button @click="emit('close')" class="rounded-md px-3 py-1.5 text-sm transition-colors"
           :style="{ color: '#A1A1A6' }">取消</button>
         <button @click="submit" class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
-          :style="{ backgroundColor: '#3B82F6', color: '#fff' }">应用</button>
+          :style="{ backgroundColor: 'var(--accent)', color: '#fff' }">应用</button>
       </div>
     </div>
   </div>

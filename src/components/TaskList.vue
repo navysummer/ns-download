@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
 import { useDownloadStore } from "../lib/store";
+import type { Task } from "../lib/store";
 import { Play, Pause, Music, Film, File, Trash2, FolderOpen, Copy, ArrowUp, SlidersHorizontal, Star, ArrowUpDown, ArrowUpWideNarrow, ArrowDownWideNarrow, List } from "lucide-vue-next";
 import EditThreadsDialog from "./EditThreadsDialog.vue";
 
@@ -22,10 +23,10 @@ const emit = defineEmits<{
 
 const store = useDownloadStore();
 const selectedId = ref<string | null>(null);
-const contextMenu = ref({ show: false, x: 0, y: 0, task: null as any | null });
+const contextMenu = ref({ show: false, x: 0, y: 0, task: null as Task | null });
 const showEditThreads = ref(false);
 const showQueueSubmenu = ref(false);
-const deleteConfirmTask = ref<any | null>(null);
+const deleteConfirmTask = ref<Task | null>(null);
 
 function closeContextMenu() {
   contextMenu.value.show = false;
@@ -68,7 +69,7 @@ onMounted(() => document.addEventListener('click', onClickOutside));
 onUnmounted(() => document.removeEventListener('click', onClickOutside));
 
 function progressColor(status: number): string {
-  return ['#F59E0B', '#3B82F6', '#F59E0B', '#22C55E', '#EF4444', '#3B82F6'][status] || '#8E8E93';
+  return ['#F59E0B', 'var(--accent)', '#F59E0B', '#22C55E', '#EF4444', 'var(--accent)'][status] || '#8E8E93';
 }
 
 function statusText(status: number): string {
@@ -100,7 +101,7 @@ function extBadge(name: string): string {
         <label class="flex cursor-pointer items-center gap-2 text-xs" :style="{ color: '#A1A1A6' }">
           <input type="checkbox" :checked="allSelected" @change="emit('toggle-select-all')"
             class="h-3.5 w-3.5 rounded"
-            :style="{ accentColor: '#3B82F6' }"
+            :style="{ accentColor: 'var(--accent)' }"
           />
           全选
         </label>
@@ -173,9 +174,9 @@ function extBadge(name: string): string {
                   :checked="selectedIds?.has(task.id)"
                   @click.stop="emit('toggle-select', task.id)"
                   class="h-4 w-4 shrink-0"
-                  :style="{ accentColor: '#3B82F6' }"
+                  :style="{ accentColor: 'var(--accent)' }"
                 />
-                <div v-if="!manageMode && selectedId === task.id" class="shrink-0 rounded-sm" :style="{ width: '3px', height: '28px', backgroundColor: '#3B82F6' }"></div>
+                <div v-if="!manageMode && selectedId === task.id" class="shrink-0 rounded-sm" :style="{ width: '3px', height: '28px', backgroundColor: 'var(--accent)' }"></div>
                 <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md" :style="{ backgroundColor: '#2C2C2E' }">
                   <span class="text-2xs font-semibold tabular-nums" :style="{ color: '#A1A1A6' }">{{ extBadge(task.file_name || task.url) }}</span>
                 </div>
@@ -336,7 +337,7 @@ function extBadge(name: string): string {
             @mouseenter="$event.target.style.backgroundColor='#3A3A3C'"
             @mouseleave="$event.target.style.backgroundColor='transparent'"
           >
-            {{ qid }}
+            {{ store.queueLabels[qid] || qid }}
           </button>
         </div>
       </div>

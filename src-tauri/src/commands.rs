@@ -255,6 +255,41 @@ pub async fn move_task_to_queue(
     Ok(())
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct QueueDef {
+    pub id: String,
+    pub label: String,
+    pub running: bool,
+}
+
+#[tauri::command]
+pub async fn save_queues(
+    state: State<'_, AppState>,
+    queues: Vec<QueueDef>,
+) -> Result<(), String> {
+    let mut engine_guard = state.engine.lock().await;
+    let engine = engine_guard.as_mut().ok_or("engine not initialized")?;
+    let json = serde_json::to_string(&queues).map_err(|e| e.to_string())?;
+    engine.db.set_config("queues", &json).await.map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn load_queues(
+    state: State<'_, AppState>,
+) -> Result<Vec<QueueDef>, String> {
+    let engine_guard = state.engine.lock().await;
+    let engine = engine_guard.as_ref().ok_or("engine not initialized")?;
+    let raw = engine.db.get_config("queues").await.map_err(|e| e.to_string())?;
+    match raw {
+        Some(json) => serde_json::from_str(&json).map_err(|e| e.to_string()),
+        None => Ok(vec![
+            QueueDef { id: "default".into(), label: "默认".into(), running: true },
+            QueueDef { id: "later".into(), label: "稍后下载".into(), running: false },
+        ]),
+    }
+}
+
 #[derive(Serialize)]
 pub struct TorrentProbeFileResponse {
     pub index: i32,
@@ -661,7 +696,7 @@ pub async fn start_api_server(state: State<'_, AppState>) -> Result<(), String> 
     let (tx, rx) = tokio::sync::mpsc::channel(1);
 
     let engine = state.engine.clone();
-    let port = {
+    let (port, token, takeover_enabled, jsonrpc_enabled, api_enabled, mcp_enabled) = {
         let engine_guard = state.engine.lock().await;
         let eng = engine_guard.as_ref().ok_or("engine not initialized")?;
         let port_str = eng.db.get_config("local_server_port").await
@@ -669,21 +704,29 @@ pub async fn start_api_server(state: State<'_, AppState>) -> Result<(), String> 
         let token = eng.db.get_config("local_server_token").await
             .ok().flatten().unwrap_or_default();
         let port: u16 = port_str.parse().unwrap_or(17800);
+        let takeover_enabled = eng.db.get_config("local_server_takeover_enabled").await
+            .ok().flatten().map(|v| v == "true").unwrap_or(true);
+        let jsonrpc_enabled = eng.db.get_config("local_server_jsonrpc_enabled").await
+            .ok().flatten().map(|v| v == "true" || v == "true").unwrap_or(true);
+        let api_enabled = eng.db.get_config("local_server_api_enabled").await
+            .ok().flatten().map(|v| v == "true").unwrap_or(true);
+        let mcp_enabled = eng.db.get_config("local_server_mcp_enabled").await
+            .ok().flatten().map(|v| v == "true").unwrap_or(true);
         // Store the shutdown sender
         let mut shutdown_guard = state.api_server_shutdown.lock().await;
         *shutdown_guard = Some(tx);
-        (port, token)
+        (port, token, takeover_enabled, jsonrpc_enabled, api_enabled, mcp_enabled)
     };
 
     // Spawn server in background
     tokio::spawn(async move {
-        let result = crate::api_server::run_server(engine, port.0, port.1, rx).await;
+        let result = crate::api_server::run_server(engine, port, token, rx, takeover_enabled, jsonrpc_enabled, api_enabled, mcp_enabled).await;
         if let Err(e) = result {
             tracing::error!("API server failed: {e}");
         }
     });
 
-    tracing::info!("API server started on port {}", port.0);
+    tracing::info!("API server started on port {}", port);
     Ok(())
 }
 
@@ -809,7 +852,7 @@ async fn spawn_subscription_tasks(engine_ref: Arc<tokio::sync::Mutex<Option<Engi
                      match ns_download_engine::ed2k::kad::fetch_nodes_dat(&kad_url).await {
                          Ok(bytes) => {
                              let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                             let mut guard = engine_ref.lock().await;
+                             let guard = engine_ref.lock().await;
                              if let Some(ref eng) = *guard {
                                  let _ = eng.db.set_config("ed2k_nodes_dat_cache", &b64).await;
                              }
@@ -838,4 +881,27 @@ fn dirs_or_fallback() -> String {
 fn app_data_dir() -> String {
     let d = dirs::data_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
     d.join("ns-download").to_string_lossy().to_string()
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct FeedbackPayload {
+    pub feedback_type: String,
+    pub message: String,
+    pub contact: String,
+    pub time: String,
+}
+
+#[tauri::command]
+pub async fn submit_feedback(feedback: FeedbackPayload) -> Result<(), String> {
+    let dir = app_data_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = std::path::PathBuf::from(&dir).join("feedback.jsonl");
+    let line = serde_json::to_string(&feedback).map_err(|e| e.to_string())?;
+    let mut file = std::fs::OpenOptions::new()
+        .create(true).append(true).open(&path)
+        .map_err(|e| e.to_string())?;
+    use std::io::Write;
+    writeln!(file, "{}", line).map_err(|e| e.to_string())?;
+    tracing::info!("Feedback saved: {}", line);
+    Ok(())
 }

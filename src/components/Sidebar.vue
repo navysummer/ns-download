@@ -33,7 +33,7 @@ const queues = computed(() =>
   Object.entries(store.queueStates).map(([id, running]) => ({
     id,
     icon: id === 'default' ? Inbox : id === 'later' ? Clock : Inbox,
-    label: id === 'default' ? '默认' : id === 'later' ? '稍后下载' : id,
+    label: store.queueLabels[id] || id,
     running,
   }))
 );
@@ -73,7 +73,7 @@ function isTabActive(tab: typeof statusTabs[number]): boolean {
 
 function navStyle(selected: boolean) {
   return selected
-    ? { backgroundColor: 'rgba(59,130,246,0.18)', color: '#3B82F6', fontWeight: 500 }
+    ? { backgroundColor: 'rgba(var(--accent-rgb),0.18)', color: 'var(--accent)', fontWeight: 500 }
     : { backgroundColor: 'transparent', color: '#A1A1A6', fontWeight: 400 };
 }
 </script>
@@ -82,34 +82,36 @@ function navStyle(selected: boolean) {
   <aside :style="{ backgroundColor: '#2C2C2E', borderRight: '1px solid #48484A' }"
     class="flex w-56 flex-col overflow-hidden select-none">
     <div :style="{ borderBottom: '1px solid #48484A' }" class="flex items-center gap-2 px-4 py-3">
-      <Download :style="{ color: '#3B82F6' }" class="h-5 w-5" />
+      <Download :style="{ color: 'var(--accent)' }" class="h-5 w-5" />
       <span :style="{ color: '#F5F5F7' }" class="text-sm font-semibold">NS Download</span>
     </div>
 
     <nav class="flex-1 overflow-y-auto px-2 py-3">
       <!-- Status section header -->
-      <div :style="{ color: '#8E8E93' }" class="mb-1 px-2 text-2xs font-semibold uppercase tracking-wider" style="letter-spacing: 0.5px;">状态</div>
+      <div v-if="store.settings.showSidebarStatus" :style="{ color: '#8E8E93' }" class="mb-1 px-2 text-2xs font-semibold uppercase tracking-wider" style="letter-spacing: 0.5px;">状态</div>
 
       <!-- Status tabs -->
-      <button
-        v-for="tab in statusTabs" :key="tab.key"
-        @click="store.setActiveFilter(tab.query.status || 'all'); router.push({ path: '/tasks', query: tab.query })"
-        :class="['flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors', isTabActive(tab) ? '' : 'hover-bg']"
-        :style="navStyle(isTabActive(tab))"
-      >
-        <span class="relative flex shrink-0">
-          <component :is="tab.icon" class="h-4 w-4" />
-          <span v-if="tab.key === 'downloading' && activeCount > 0"
-            :style="{ backgroundColor: '#22C55E', borderColor: '#2C2C2E' }"
-            class="absolute -right-1.5 -top-1.5 h-1.5 w-1.5 rounded-full border"
-          ></span>
-        </span>
-        <span class="flex-1 text-left">{{ tab.label }}</span>
-        <span :style="{ color: '#8E8E93' }" class="text-2xs tabular-nums">{{ tabCount(tab.key) }}</span>
-      </button>
+      <template v-if="store.settings.showSidebarStatus">
+        <button
+          v-for="tab in statusTabs" :key="tab.key"
+          @click="store.setActiveFilter(tab.query.status || 'all'); router.push({ path: '/tasks', query: tab.query })"
+          :class="['flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors', isTabActive(tab) ? '' : 'hover-bg']"
+          :style="navStyle(isTabActive(tab))"
+        >
+          <span class="relative flex shrink-0">
+            <component :is="tab.icon" class="h-4 w-4" />
+            <span v-if="tab.key === 'downloading' && activeCount > 0"
+              :style="{ backgroundColor: '#22C55E', borderColor: '#2C2C2E' }"
+              class="absolute -right-1.5 -top-1.5 h-1.5 w-1.5 rounded-full border"
+            ></span>
+          </span>
+          <span class="flex-1 text-left">{{ tab.label }}</span>
+          <span :style="{ color: '#8E8E93' }" class="text-2xs tabular-nums">{{ tabCount(tab.key) }}</span>
+        </button>
+      </template>
 
       <!-- Queues section -->
-      <div class="mt-4 mb-1 px-2">
+      <div v-if="store.settings.showSidebarQueues" class="mt-4 mb-1 px-2">
         <div class="hover-text-secondary flex cursor-pointer items-center justify-between rounded px-1 py-1 transition-colors"
           :style="{ color: '#8E8E93' }"
           @click="queuesExpanded = !queuesExpanded"
@@ -121,7 +123,7 @@ function navStyle(selected: boolean) {
           <button @click.stop="showQueueManager = true" class="rounded p-0.5 transition-colors"><Plus class="h-3 w-3" /></button>
         </div>
       </div>
-      <template v-if="queuesExpanded">
+      <template v-if="store.settings.showSidebarQueues && queuesExpanded">
         <div
           v-for="q in queues" :key="q.id"
           @click="selectedQueue = q.id; store.setActiveFilter('all'); store.setCategoryFilter('all'); store.setQueueFilter(q.id)"
@@ -152,7 +154,7 @@ function navStyle(selected: boolean) {
       </template>
 
       <!-- Categories section -->
-      <div class="mt-4 mb-1 px-2">
+      <div v-if="store.settings.showSidebarCategory" class="mt-4 mb-1 px-2">
         <div class="hover-text-secondary flex cursor-pointer items-center justify-between rounded px-1 py-1 transition-colors"
           :style="{ color: '#8E8E93' }"
           @click="categoriesExpanded = !categoriesExpanded"
@@ -164,7 +166,7 @@ function navStyle(selected: boolean) {
           <button @click.stop="showCategoryManager = true" class="rounded p-0.5 transition-colors"><SlidersHorizontal class="h-3 w-3" /></button>
         </div>
       </div>
-      <template v-if="categoriesExpanded">
+      <template v-if="store.settings.showSidebarCategory && categoriesExpanded">
         <div
           v-for="cat in sidebarCategories" :key="cat.id"
           @click="selectedCategory = cat.id; store.setCategoryFilter(cat.id)"

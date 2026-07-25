@@ -54,6 +54,7 @@ onMounted(async () => {
   try {
     await invoke("init_engine");
     await store.loadSettings();
+    await store.loadQueues();
 
     unlistens.push(await listen<TasksSnapshotPayload>("tasks-snapshot", (event) => {
       store.tasks = event.payload.tasks;
@@ -122,7 +123,9 @@ onMounted(async () => {
           states[q.queue_id] = q.is_running;
         }
         if (Object.keys(states).length > 0) {
+          const labels = store.queueLabels;
           store.queueStates = states;
+          store.queueLabels = labels;
         }
       }
     }));
@@ -192,21 +195,35 @@ onMounted(async () => {
     watch(() => [store.settings.theme, store.settings.accentColor], () => applyTheme(), { immediate: true });
     function applyTheme() {
       const root = document.documentElement;
-      const isLight = store.settings.theme === 'classic-light';
+      const isLight = store.settings.theme === 'classic-light' || store.settings.theme === 'light';
       root.style.setProperty('--app-bg', isLight ? '#F5F5F7' : '#1C1C1E');
       root.style.setProperty('--surface-bg', isLight ? '#FFFFFF' : '#2C2C2E');
+      root.style.setProperty('--surface-bg2', isLight ? '#F0F0F2' : '#3A3A3C');
       root.style.setProperty('--surface-border', isLight ? '#E5E5EA' : '#48484A');
       root.style.setProperty('--text-primary', isLight ? '#1C1C1E' : '#F5F5F7');
       root.style.setProperty('--text-secondary', isLight ? '#8E8E93' : '#A1A1A6');
-      // Map accent color name to hex
-      const accentMap: Record<string, string> = {
+      root.style.setProperty('--accent', accentHex(store.settings.accentColor));
+      root.style.setProperty('--accent-rgb', accentRgb(store.settings.accentColor));
+      root.style.setProperty('--ui-scale', `${store.settings.uiScale / 100}`);
+    }
+    function accentHex(val: string): string {
+      const m: Record<string, string> = {
         blue: '#3B82F6', green: '#22C55E', orange: '#F97316',
         purple: '#8B5CF6', pink: '#EC4899', red: '#EF4444',
-        teal: '#14B8A6', yellow: '#EAB308',
+        teal: '#14B8A6', yellow: '#EAB308', cyan: '#06B6D4',
         '#3B82F6': '#3B82F6', '#22C55E': '#22C55E', '#F97316': '#F97316',
         '#06B6D4': '#06B6D4', '#8B5CF6': '#8B5CF6',
+        '#EC4899': '#EC4899', '#EF4444': '#EF4444', '#EAB308': '#EAB308',
       };
-      root.style.setProperty('--accent', accentMap[store.settings.accentColor] || '#3B82F6');
+      return m[val] || '#3B82F6';
+    }
+    function hexToRgb(hex: string): string {
+      const v = parseInt(hex.replace('#', ''), 16);
+      return `${(v >> 16) & 255}, ${(v >> 8) & 255}, ${v & 255}`;
+    }
+    function accentRgb(val: string): string {
+      const h = accentHex(val);
+      return hexToRgb(h);
     }
 
     // Window-level drag-and-drop
@@ -229,7 +246,9 @@ onMounted(async () => {
         }
         if (ws.maximized) await mainWindow.maximize();
       }
-    } catch (_) {}
+    } catch (e) {
+      console.warn("Failed to restore window state:", e);
+    }
 
     // Save window state on resize/move
     const saveInterval = setInterval(async () => {
@@ -242,7 +261,9 @@ onMounted(async () => {
           x: pos.x, y: pos.y,
           maximized,
         }));
-      } catch (_) {}
+      } catch (e) {
+        console.warn("Failed to save window state:", e);
+      }
     }, 2000);
     unlistens.push(() => clearInterval(saveInterval));
 
@@ -250,7 +271,9 @@ onMounted(async () => {
     watch(() => store.activeCount, async (count) => {
       try {
         await mainWindow.setBadgeCount(count);
-      } catch (_) {}
+      } catch (e) {
+        console.warn("Failed to set badge count:", e);
+      }
     }, { immediate: true });
 
     // Close to tray
@@ -369,7 +392,7 @@ function onWindowDrop(e: DragEvent) {
 </script>
 
 <template>
-  <div class="flex h-screen flex-col" :style="{ backgroundColor: '#1C1C1E', color: '#F5F5F7' }">
+  <div class="flex h-screen flex-col" :style="{ backgroundColor: '#1C1C1E', color: '#F5F5F7', zoom: `${store.settings.uiScale}%` }">
     <div class="flex flex-1 overflow-hidden">
       <Sidebar />
       <div class="flex flex-1 flex-col overflow-hidden">
@@ -379,12 +402,12 @@ function onWindowDrop(e: DragEvent) {
           <div class="relative flex-1" style="max-width: 320px;">
             <div class="flex items-center rounded-md px-2.5 transition-colors"
               :style="{
-                backgroundColor: searchFocused ? 'rgba(59,130,246,0.08)' : '#1C1C1E',
-                border: `1px solid ${searchFocused ? '#3B82F6' : '#48484A'}`,
+                backgroundColor: searchFocused ? 'rgba(var(--accent-rgb),0.08)' : '#1C1C1E',
+                border: `1px solid ${searchFocused ? 'var(--accent)' : '#48484A'}`,
                 height: '30px',
               }"
             >
-              <Search class="h-3.5 w-3.5 shrink-0" :style="{ color: searchFocused ? '#3B82F6' : '#8E8E93' }" />
+              <Search class="h-3.5 w-3.5 shrink-0" :style="{ color: searchFocused ? 'var(--accent)' : '#8E8E93' }" />
               <input
                 v-model="store.searchQuery"
                 placeholder="搜索任务…"
@@ -403,7 +426,8 @@ function onWindowDrop(e: DragEvent) {
           <div class="flex-1" />
 
           <!-- Settings -->
-          <button @click="router.push('/settings')"
+          <button v-if="store.settings.showTitlebarSettings"
+            @click="router.push('/settings')"
             class="flex items-center justify-center rounded p-1.5 transition-colors hover-bg"
             :style="{ color: '#8E8E93', width: '36px', height: '36px' }"
           >
@@ -423,12 +447,12 @@ function onWindowDrop(e: DragEvent) {
     <!-- Drop overlay -->
     <div v-if="showDropOverlay"
       class="pointer-events-none fixed inset-0 z-[9999] flex items-center justify-center"
-      :style="{ backgroundColor: 'rgba(59,130,246,0.15)' }"
+      :style="{ backgroundColor: 'rgba(var(--accent-rgb),0.15)' }"
     >
       <div class="rounded-2xl px-8 py-6 text-center"
-        :style="{ backgroundColor: 'rgba(44,44,46,0.95)', border: '2px dashed #3B82F6' }"
+        :style="{ backgroundColor: 'rgba(44,44,46,0.95)', border: '2px dashed var(--accent)' }"
       >
-        <Download class="mx-auto h-8 w-8 mb-2" :style="{ color: '#3B82F6' }" />
+        <Download class="mx-auto h-8 w-8 mb-2" :style="{ color: 'var(--accent)' }" />
         <div class="text-sm font-medium" :style="{ color: '#F5F5F7' }">释放链接以下载</div>
         <div class="text-xs mt-1" :style="{ color: '#8E8E93' }">支持 HTTP/HTTPS/FTP/Magnet 链接</div>
       </div>

@@ -42,9 +42,9 @@ function segmentColor(row: number, col: number): string {
   // A few blocks after that are "active" (downloading)
   const doneThreshold = Math.floor(progress * totalBlocks);
   const activeZone = 3;
-  if (idx <= doneThreshold - activeZone) return '#3B82F6';
+  if (idx <= doneThreshold - activeZone) return 'var(--accent)';
   if (idx <= doneThreshold) return '#22C55E';
-  if (idx <= doneThreshold + 2 && props.task.status === 1) return '#60A5FA';
+  if (idx <= doneThreshold + 2 && props.task.status === 1) return 'var(--accent)';
   return '#3A3A3C';
 }
 
@@ -111,7 +111,7 @@ function onDragEnd() {
         @click="activeTab = tab.id"
         class="flex items-center gap-1.5 rounded-t-md px-3 py-1.5 text-xs transition-colors"
         :style="activeTab === tab.id
-          ? { backgroundColor: '#3A3A3C', color: '#F5F5F7', borderBottom: '2px solid #3B82F6' }
+          ? { backgroundColor: '#3A3A3C', color: '#F5F5F7', borderBottom: '2px solid var(--accent)' }
           : { color: '#8E8E93' }"
       >
         <component :is="tab.icon" class="h-3.5 w-3.5" />
@@ -162,7 +162,7 @@ function onDragEnd() {
       <!-- Files tab -->
       <template v-if="activeTab === 'files'">
         <div v-if="task.file_name" class="flex items-center gap-3 rounded-lg px-3 py-2" :style="{ backgroundColor: '#1C1C1E' }">
-          <FileIcon class="h-5 w-5 shrink-0" :style="{ color: '#3B82F6' }" />
+          <FileIcon class="h-5 w-5 shrink-0" :style="{ color: 'var(--accent)' }" />
           <div class="min-w-0 flex-1">
             <div class="text-sm truncate" :style="{ color: '#F5F5F7' }">{{ task.file_name }}</div>
             <div class="text-2xs" :style="{ color: '#8E8E93' }">{{ formatBytes(task.total_bytes) }}</div>
@@ -182,7 +182,7 @@ function onDragEnd() {
           <!-- Stats row -->
           <div class="flex items-center gap-4 text-xs">
             <div class="flex items-center gap-1.5">
-              <Circle class="h-2.5 w-2.5 fill-current" :style="{ color: '#3B82F6' }" />
+              <Circle class="h-2.5 w-2.5 fill-current" :style="{ color: 'var(--accent)' }" />
               <span :style="{ color: '#A1A1A6' }">已完成</span>
             </div>
             <div class="flex items-center gap-1.5">
@@ -227,7 +227,7 @@ function onDragEnd() {
               <div class="h-full rounded-full transition-all duration-300"
                 :style="{
                   width: progressPercent + '%',
-                  background: 'linear-gradient(90deg, #3B82F6, #22C55E)',
+                  background: 'linear-gradient(90deg, var(--accent), #22C55E)',
                 }"
               ></div>
             </div>

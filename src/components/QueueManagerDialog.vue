@@ -23,16 +23,20 @@ onMounted(() => {
 
 function syncFromStore() {
   queues.value = Object.entries(store.queueStates).map(([id, running]) => ({
-    id, label: id === 'default' ? '默认' : id === 'later' ? '稍后下载' : id, running,
+    id, label: store.queueLabels[id] || id, running,
   }));
 }
 
 function syncToStore() {
   const s: Record<string, boolean> = {};
+  const l: Record<string, string> = {};
   for (const q of queues.value) {
     s[q.id] = q.running;
+    l[q.id] = q.label;
   }
   store.queueStates = s;
+  store.queueLabels = l;
+  store.saveQueues();
 }
 
 function addQueue() {
@@ -94,7 +98,7 @@ function toggleRunning(id: string) {
           <template v-if="q.editing">
             <input v-model="editText" @keyup.enter="saveEdit(q)" @keyup.escape="q.editing = false"
               class="flex-1 rounded bg-transparent px-1 py-0.5 text-sm outline-none"
-              :style="{ color: '#F5F5F7', border: '1px solid #3B82F6' }"
+              :style="{ color: '#F5F5F7', border: '1px solid var(--accent)' }"
               autofocus
             />
             <button @click="saveEdit(q)" class="rounded p-1" :style="{ color: '#22C55E' }"><Check class="h-3.5 w-3.5" /></button>
@@ -123,7 +127,7 @@ function toggleRunning(id: string) {
           :style="{ color: '#F5F5F7', border: '1px solid #48484A' }"
         />
         <button @click="addQueue" class="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
-          :style="{ backgroundColor: '#3B82F6', color: '#fff' }">
+          :style="{ backgroundColor: 'var(--accent)', color: '#fff' }">
           <Plus class="h-3.5 w-3.5" /> 添加
         </button>
       </div>

@@ -108,7 +108,7 @@ const shutdownPresets = [
       <div class="relative">
           <button @click="showSpeedPopover = !showSpeedPopover"
             class="hover-bg-surface2 flex items-center gap-1 rounded px-1 py-0.5 transition-colors"
-            :style="{ color: localLimited ? '#3B82F6' : '#8E8E93' }"
+            :style="{ color: localLimited ? 'var(--accent)' : '#8E8E93' }"
           >
             <Gauge class="h-2.5 w-2.5" />
             <span class="tabular-nums">{{ localLimited ? `${localLimitKbs} KB/s` : '无限' }}</span>
@@ -126,7 +126,7 @@ const shutdownPresets = [
               <button @click="localLimited = !localLimited; applySpeedLimit()"
                 class="rounded-sm px-2 py-0.5 text-2xs font-medium transition-colors"
                 :style="{
-                  backgroundColor: localLimited ? '#3B82F6' : '#3A3A3C',
+                  backgroundColor: localLimited ? 'var(--accent)' : '#3A3A3C',
                   color: localLimited ? '#fff' : '#A1A1A6',
                 }"
               >{{ localLimited ? '开启' : '关闭' }}</button>
@@ -136,9 +136,9 @@ const shutdownPresets = [
                 @click="localLimited = true; localLimitKbs = p.kbs; applySpeedLimit()"
                 class="rounded px-2 py-1 text-2xs transition-colors"
                 :style="{
-                  backgroundColor: localLimited && localLimitKbs === p.kbs ? '#3B82F6' : '#3A3A3C',
+                  backgroundColor: localLimited && localLimitKbs === p.kbs ? 'var(--accent)' : '#3A3A3C',
                   color: localLimited && localLimitKbs === p.kbs ? '#fff' : '#A1A1A6',
-                  border: localLimited && localLimitKbs === p.kbs ? '1px solid #3B82F6' : '1px solid #48484A',
+                  border: localLimited && localLimitKbs === p.kbs ? '1px solid var(--accent)' : '1px solid #48484A',
                 }"
               >{{ p.label }}</button>
             </div>

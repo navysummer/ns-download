@@ -102,12 +102,15 @@ pub fn run() {
             commands::stop_api_server,
             commands::set_task_priority,
             commands::move_task_to_queue,
+            commands::save_queues,
+            commands::load_queues,
             commands::set_task_segments,
             commands::probe_torrent_file,
             commands::reveal_in_folder,
             commands::send_notification,
             commands::prevent_sleep,
             commands::shutdown_system,
+            commands::submit_feedback,
         ])
         .setup(|app| {
             #[cfg(not(mobile))]

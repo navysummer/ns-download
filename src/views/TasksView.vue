@@ -23,12 +23,28 @@ function batchMoveToQueue() {
   batchQueueId.value = "";
 }
 
-function applyBatchThreads() {
+const batchResult = ref("");
+let batchResultTimer: ReturnType<typeof setTimeout> | null = null;
+
+function showBatchResult(msg: string) {
+  batchResult.value = msg;
+  if (batchResultTimer) clearTimeout(batchResultTimer);
+  batchResultTimer = setTimeout(() => batchResult.value = "", 3000);
+}
+
+async function applyBatchThreads() {
   const count = Math.max(1, Math.min(128, batchThreadsValue.value));
-  selectedIds.value.forEach(id => {
-    invoke("set_task_segments", { taskId: id, segments: count }).catch(console.error);
-  });
+  const ids = [...selectedIds.value];
   showBatchThreads.value = false;
+  const results = await Promise.allSettled(
+    ids.map(id => invoke("set_task_segments", { taskId: id, segments: count }))
+  );
+  const failed = results.filter(r => r.status === "rejected").length;
+  if (failed === 0) {
+    showBatchResult(`已为 ${ids.length} 个任务设置 ${count} 线程`);
+  } else {
+    showBatchResult(`${failed}/${ids.length} 个任务设置线程失败`);
+  }
 }
 const manageMode = ref(false);
 const selectedIds = ref<Set<string>>(new Set());
@@ -157,34 +173,42 @@ function formatEta(task: any): string {
         @click="store.activeFilter = tab.id"
         :class="['rounded-md px-3 py-1 text-sm transition-colors', store.activeFilter === tab.id ? '' : 'hover-bg']"
         :style="store.activeFilter === tab.id
-          ? { backgroundColor: '#3B82F6', color: '#fff' }
+          ? { backgroundColor: 'var(--accent)', color: '#fff' }
           : { color: '#8E8E93', backgroundColor: 'transparent' }"
       >
         {{ tab.label }} ({{ tab.count }})
       </button>
       <div class="flex-1" />
       <button data-manage-mode :class="['rounded p-1.5 transition-colors', manageMode ? 'bg-blue-500/20 text-blue-500' : '']"
-        :style="{ color: manageMode ? '#3B82F6' : '#8E8E93' }"
+        :style="{ color: manageMode ? 'var(--accent)' : '#8E8E93' }"
         @click="manageMode = !manageMode; if (!manageMode) selectedIds = new Set()">
         <CheckSquare class="h-4 w-4" />
       </button>
-      <button @click="store.pauseAll" class="rounded p-1.5 transition-colors" :style="{ color: '#8E8E93' }">
+      <button v-if="store.settings.showTitlebarPauseAll" @click="store.pauseAll" class="rounded p-1.5 transition-colors" :style="{ color: '#8E8E93' }">
         <Pause class="h-4 w-4" />
       </button>
-      <button @click="store.resumeAll" class="rounded p-1.5 transition-colors" :style="{ color: '#8E8E93' }">
+      <button v-if="store.settings.showTitlebarResumeAll" @click="store.resumeAll" class="rounded p-1.5 transition-colors" :style="{ color: '#8E8E93' }">
         <Play class="h-4 w-4" />
       </button>
       <button @click="showNewDialog = true; droppedUrl = ''"
         class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
-        :style="{ backgroundColor: '#3B82F6', color: '#fff' }">
+        :style="{ backgroundColor: 'var(--accent)', color: '#fff' }">
         <Plus class="h-3.5 w-3.5" /> 新建
       </button>
     </div>
 
     <!-- Batch action bar -->
+    <!-- Batch result toast -->
+    <div v-if="batchResult"
+      class="flex items-center justify-center px-4 py-1.5"
+      :style="{ backgroundColor: 'rgba(var(--accent-rgb),0.1)', borderBottom: '1px solid #3A3A3C' }"
+    >
+      <span class="text-xs" :style="{ color: 'var(--accent)' }">{{ batchResult }}</span>
+    </div>
+
     <div v-if="manageMode && selectedIds.size > 0"
       class="flex items-center gap-2 px-4 py-2"
-      :style="{ backgroundColor: 'rgba(59,130,246,0.1)', borderBottom: '1px solid #3A3A3C' }"
+      :style="{ backgroundColor: 'rgba(var(--accent-rgb),0.1)', borderBottom: '1px solid #3A3A3C' }"
     >
       <span class="text-xs" :style="{ color: '#A1A1A6' }">已选择 {{ selectedIds.size }} 个任务</span>
       <div class="flex-1"></div>
@@ -201,7 +225,7 @@ function formatEta(task: any): string {
           @keydown.enter="applyBatchThreads"
         />
         <button @click="applyBatchThreads" class="rounded px-1.5 py-0.5 text-2xs transition-colors"
-          :style="{ backgroundColor: '#3B82F6', color: '#fff' }">应用</button>
+          :style="{ backgroundColor: 'var(--accent)', color: '#fff' }">应用</button>
         <button @click="showBatchThreads = false" class="rounded px-1 py-0.5 text-2xs transition-colors"
           :style="{ color: '#8E8E93' }">取消</button>
       </div>
@@ -213,7 +237,7 @@ function formatEta(task: any): string {
         @change="batchMoveToQueue"
       >
         <option value="">移动到队列...</option>
-        <option v-for="(_, qid) in store.queueStates" :key="qid" :value="qid">{{ qid }}</option>
+        <option v-for="(_, qid) in store.queueStates" :key="qid" :value="qid">{{ store.queueLabels[qid] || qid }}</option>
       </select>
     </div>
 

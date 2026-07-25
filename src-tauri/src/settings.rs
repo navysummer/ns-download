@@ -158,11 +158,27 @@ pub(crate) async fn apply_bt_config(engine: &mut Engine, _changed_key: &str, _ch
     engine.manager.set_bt_config(config);
 }
 
-/// Apply ED2K config (reads all ED2K keys from DB).
+/// Apply ED2K config to the shared client (reads all ED2K keys from DB).
 async fn apply_ed2k_config(engine: &mut Engine, _changed_key: &str, _changed_value: &str) {
-    // ED2K settings are read from DB at download time by the ED2K downloader.
-    // No runtime config struct to update; the values are already persisted to DB.
-    let _ = engine;
+    let listen_port = engine.db.get_config("ed2k_listen_port").await
+        .ok().flatten().and_then(|v| v.parse::<u16>().ok()).unwrap_or(0);
+    let enable_kad = engine.db.get_config("ed2k_enable_kad").await
+        .ok().flatten().map(|v| v == "true").unwrap_or(true);
+    let enable_upnp = engine.db.get_config("ed2k_enable_upnp").await
+        .ok().flatten().map(|v| v == "true").unwrap_or(true);
+    let server_list = engine.db.get_config("ed2k_server_list").await
+        .ok().flatten().unwrap_or_default();
+    let servers = ns_download_engine::ed2k::server::parse_server_list(&server_list);
+
+    ns_download_engine::ed2k::client::shared_client().configure(
+        ns_download_engine::ed2k::client::ClientConfig {
+            listen_port,
+            udp_port: 0,
+            servers,
+            enable_upnp,
+            enable_kad,
+        },
+    );
 }
 
 /// Apply all settings from DB to the engine at startup.
@@ -171,6 +187,8 @@ pub async fn apply_all(engine: &mut Engine) {
     apply_proxy_config(engine, "", "").await;
     // BT (reads from DB internally)
     apply_bt_config(engine, "", "").await;
+    // ED2K (reads from DB internally)
+    apply_ed2k_config(engine, "", "").await;
 
     if let Ok(Some(v)) = engine.db.get_config("max_concurrent_tasks").await {
         engine.manager.set_max_concurrent(str_to_usize(&v, 5)).await;

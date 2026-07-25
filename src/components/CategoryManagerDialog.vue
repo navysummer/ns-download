@@ -63,12 +63,12 @@ function toggleVisible(id: string) {
           :style="{ borderBottom: '1px solid #3A3A3C' }"
           class="flex items-center gap-2 px-2 py-2"
         >
-          <File class="h-3.5 w-3.5 shrink-0 cursor-pointer" :style="{ color: cat.visible ? '#3B82F6' : '#8E8E93' }" @click="store.toggleCategoryVisibility(cat.id)" />
+          <File class="h-3.5 w-3.5 shrink-0 cursor-pointer" :style="{ color: cat.visible ? 'var(--accent)' : '#8E8E93' }" @click="store.toggleCategoryVisibility(cat.id)" />
           <template v-if="editingId === cat.id">
             <div class="flex-1 space-y-1">
               <input v-model="editName" @keyup.enter="saveEdit(cat.id)"
                 class="w-full rounded bg-transparent px-1 py-0.5 text-sm outline-none"
-                :style="{ color: '#F5F5F7', border: '1px solid #3B82F6' }"
+                :style="{ color: '#F5F5F7', border: '1px solid var(--accent)' }"
                 placeholder="分类名称"
               />
               <input v-model="editExts" @keyup.enter="saveEdit(cat.id)"
@@ -99,7 +99,7 @@ function toggleVisible(id: string) {
             :style="{ color: '#A1A1A6', border: '1px solid #48484A' }"
           />
           <button @click="addCategory" class="flex items-center gap-1 rounded-md px-3 py-1 text-xs font-medium transition-colors"
-            :style="{ backgroundColor: '#3B82F6', color: '#fff' }">
+            :style="{ backgroundColor: 'var(--accent)', color: '#fff' }">
             <Plus class="h-3 w-3" /> 添加
           </button>
         </div>

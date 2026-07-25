@@ -86,7 +86,8 @@ const headerRows = reactive<HeaderRow[]>([]);
 onMounted(async () => {
   try {
     saveDir.value = await downloadDir();
-  } catch {
+  } catch (e) {
+    console.error("Failed to get download dir:", e);
     saveDir.value = store.settings.saveDir || "/Downloads";
   }
 });
@@ -173,8 +174,8 @@ function removeHeader(index: number) {
       <!-- Title -->
       <div class="flex items-center justify-between px-5 py-4" :style="{ borderBottom: '1px solid #3A3A3C' }">
         <div class="flex items-center gap-2.5">
-          <div class="flex h-7 w-7 items-center justify-center rounded-md" :style="{ backgroundColor: 'rgba(59,130,246,0.18)' }">
-            <Download class="h-3.5 w-3.5" :style="{ color: '#3B82F6' }" />
+          <div class="flex h-7 w-7 items-center justify-center rounded-md" :style="{ backgroundColor: 'rgba(var(--accent-rgb),0.18)' }">
+            <Download class="h-3.5 w-3.5" :style="{ color: 'var(--accent)' }" />
           </div>
           <h2 class="text-sm font-semibold" :style="{ color: '#F5F5F7' }">新建下载</h2>
         </div>
@@ -195,7 +196,7 @@ function removeHeader(index: number) {
             class="w-full resize-none rounded-md px-3 py-2 text-sm outline-none transition-colors"
             :style="{ backgroundColor: '#1C1C1E', border: '1px solid #48484A', color: '#F5F5F7', minHeight: '100px' }" />
           <div class="mt-1.5 flex gap-2">
-            <button @click="pickTorrent" class="flex items-center gap-1 rounded px-2 py-1 text-2xs transition-colors hover-bg" :style="{ color: '#3B82F6' }">
+            <button @click="pickTorrent" class="flex items-center gap-1 rounded px-2 py-1 text-2xs transition-colors hover-bg" :style="{ color: 'var(--accent)' }">
               <FileDown class="h-3 w-3" /> 种子文件
             </button>
             <button @click="pickTxt" class="flex items-center gap-1 rounded px-2 py-1 text-2xs transition-colors hover-bg" :style="{ color: '#A1A1A6' }">
@@ -238,7 +239,7 @@ function removeHeader(index: number) {
 
         <!-- Overwrite checkbox -->
         <label class="flex cursor-pointer items-center gap-2 text-xs" :style="{ color: '#A1A1A6' }">
-          <input type="checkbox" v-model="overwrite" class="h-3.5 w-3.5 rounded" :style="{ accentColor: '#3B82F6' }" />
+          <input type="checkbox" v-model="overwrite" class="h-3.5 w-3.5 rounded" :style="{ accentColor: 'var(--accent)' }" />
           如果文件已存在，覆盖原文件（跳过自动重命名）
         </label>
 
@@ -311,7 +312,7 @@ function removeHeader(index: number) {
                 <X class="h-3.5 w-3.5" />
               </button>
             </div>
-            <button @click="addHeader" class="flex items-center gap-1 rounded px-2 py-1 text-2xs transition-colors hover-bg" :style="{ color: '#3B82F6' }">
+            <button @click="addHeader" class="flex items-center gap-1 rounded px-2 py-1 text-2xs transition-colors hover-bg" :style="{ color: 'var(--accent)' }">
               <Plus class="h-3 w-3" /> 添加请求头
             </button>
           </div>
@@ -331,7 +332,7 @@ function removeHeader(index: number) {
         </button>
         <button @click="submit(false)" :disabled="!url.trim()"
           class="flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
-          :style="{ backgroundColor: '#3B82F6', color: '#fff' }">
+          :style="{ backgroundColor: 'var(--accent)', color: '#fff' }">
           <Download class="h-3.5 w-3.5" /> 开始下载
         </button>
       </div>

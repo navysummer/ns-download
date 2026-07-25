@@ -44,6 +44,7 @@ export interface Settings {
   retryCount: number;
   retryDelay: number;
   proxyType: string;
+  proxyProtocol: string;
   proxyHost: string;
   proxyPort: number;
   proxyUsername: string;
@@ -92,6 +93,7 @@ export interface Settings {
   ed2kListenPort: number;
   ed2kServerList: string;
   ed2kServerSubUrls: string;
+  ed2kNodesDatUrl: string;
 }
 
 export const useDownloadStore = defineStore("download", () => {
@@ -117,6 +119,7 @@ export const useDownloadStore = defineStore("download", () => {
     retryCount: 5,
     retryDelay: 5,
     proxyType: "none",
+    proxyProtocol: "http",
     proxyHost: "",
     proxyPort: 1080,
     proxyUsername: "",
@@ -165,6 +168,7 @@ export const useDownloadStore = defineStore("download", () => {
     ed2kListenPort: 0,
     ed2kServerList: "",
     ed2kServerSubUrls: "",
+    ed2kNodesDatUrl: "https://upd.emule-security.org/nodes.dat",
   });
 
   const activeCount = computed(() =>
@@ -284,6 +288,8 @@ export const useDownloadStore = defineStore("download", () => {
     }
   }
 
+const pendingUrls = new Set<string>();
+
   async function addTask(spec: {
     url: string;
     save_dir: string;
@@ -300,12 +306,20 @@ export const useDownloadStore = defineStore("download", () => {
     extra_headers?: Record<string, string>;
   }) {
     try {
+      const dupKey = spec.url.trim();
+      if (pendingUrls.has(dupKey)) {
+        console.warn(`[store] duplicate task ignored: ${dupKey}`);
+        return;
+      }
+      pendingUrls.add(dupKey);
       const timeout = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("create_task timed out after 15s")), 15000)
+        setTimeout(() => { pendingUrls.delete(dupKey); reject(new Error("create_task timed out after 15s")); }, 15000)
       );
       await Promise.race([invoke("create_task", { spec }), timeout]);
+      pendingUrls.delete(dupKey);
       await loadTasks();
     } catch (e) {
+      pendingUrls.delete(spec.url.trim());
       console.error("Failed to create task:", e);
     }
   }
@@ -374,17 +388,49 @@ export const useDownloadStore = defineStore("download", () => {
   }
 
   const queueStates = ref<Record<string, boolean>>({ default: true, later: false });
+  const queueLabels = ref<Record<string, string>>({ default: '默认', later: '稍后下载' });
 
-  function toggleQueue(queueId: string) {
+  async function loadQueues() {
+    try {
+      const defs = await invoke<Array<{ id: string, label: string, running: boolean }>>("load_queues");
+      const s: Record<string, boolean> = {};
+      const l: Record<string, string> = {};
+      for (const d of defs) {
+        s[d.id] = d.running;
+        l[d.id] = d.label;
+      }
+      queueStates.value = s;
+      queueLabels.value = l;
+    } catch (e) {
+      console.error("Failed to load queues:", e);
+    }
+  }
+
+  async function saveQueues() {
+    try {
+      const ids = new Set([...Object.keys(queueStates.value), ...Object.keys(queueLabels.value)]);
+      const defs = [...ids].map(id => ({
+        id,
+        label: queueLabels.value[id] || (id === 'default' ? '默认' : id === 'later' ? '稍后下载' : id),
+        running: queueStates.value[id] ?? true,
+      }));
+      await invoke("save_queues", { queues: defs });
+    } catch (e) {
+      console.error("Failed to save queues:", e);
+    }
+  }
+
+  async function toggleQueue(queueId: string) {
     const s = { ...queueStates.value };
     s[queueId] = !s[queueId];
     queueStates.value = s;
+    await saveQueues();
   }
 
   const queueTaskCounts = computed(() => {
     const counts: Record<string, number> = {};
     for (const t of tasks.value) {
-      const qid = (t as any).queue_id || 'default';
+      const qid = t.queue_id || 'default';
       counts[qid] = (counts[qid] || 0) + 1;
     }
     for (const qid of Object.keys(queueStates.value)) {
@@ -494,6 +540,7 @@ export const useDownloadStore = defineStore("download", () => {
       if (raw["max_auto_retries"] !== undefined) s.retryCount = parseInt(raw["max_auto_retries"]) ?? 3;
       if (raw["auto_retry_delay_secs"] !== undefined) s.retryDelay = parseInt(raw["auto_retry_delay_secs"]) || 5;
       if (raw["proxy_mode"] !== undefined) s.proxyType = raw["proxy_mode"];
+      if (raw["proxy_type"] !== undefined) s.proxyProtocol = raw["proxy_type"];
       if (raw["proxy_host"] !== undefined) s.proxyHost = raw["proxy_host"];
       if (raw["proxy_port"] !== undefined) s.proxyPort = parseInt(raw["proxy_port"]) || 1080;
       if (raw["proxy_username"] !== undefined) s.proxyUsername = raw["proxy_username"];
@@ -519,6 +566,7 @@ export const useDownloadStore = defineStore("download", () => {
       if (raw["ed2k_listen_port"] !== undefined) s.ed2kListenPort = parseInt(raw["ed2k_listen_port"]) || 0;
       if (raw["ed2k_server_list"] !== undefined) s.ed2kServerList = raw["ed2k_server_list"];
       if (raw["ed2k_server_sub_urls"] !== undefined) s.ed2kServerSubUrls = raw["ed2k_server_sub_urls"];
+      if (raw["ed2k_nodes_dat_url"] !== undefined) s.ed2kNodesDatUrl = raw["ed2k_nodes_dat_url"];
       if (raw["local_server_enabled"] !== undefined) s.localServerEnabled = raw["local_server_enabled"] === "true";
       if (raw["local_server_port"] !== undefined) s.localServerPort = parseInt(raw["local_server_port"]) || 16891;
       if (raw["local_server_token"] !== undefined) s.localServerToken = raw["local_server_token"];
@@ -562,6 +610,7 @@ export const useDownloadStore = defineStore("download", () => {
       "max_auto_retries": String(s.retryCount),
       "auto_retry_delay_secs": String(s.retryDelay),
       "proxy_mode": s.proxyType,
+      "proxy_type": s.proxyProtocol,
       "proxy_host": s.proxyHost,
       "proxy_port": String(s.proxyPort),
       "proxy_username": s.proxyUsername,
@@ -583,6 +632,7 @@ export const useDownloadStore = defineStore("download", () => {
       "ed2k_listen_port": String(s.ed2kListenPort),
       "ed2k_server_list": s.ed2kServerList,
       "ed2k_server_sub_urls": s.ed2kServerSubUrls,
+      "ed2k_nodes_dat_url": s.ed2kNodesDatUrl,
       "local_server_enabled": s.localServerEnabled ? "true" : "false",
       "local_server_port": String(s.localServerPort),
       "local_server_token": s.localServerToken,
@@ -603,6 +653,11 @@ export const useDownloadStore = defineStore("download", () => {
       "torrent_associated": s.torrentAssociated ? "true" : "false",
       "keep_awake": s.keepAwake ? "true" : "false",
       "local_server_mcp_enabled": s.localServerMcpEnabled ? "true" : "false",
+      "conn_policy_count": String(s.connPolicyCount),
+      "remember_last_save_dir": s.rememberLastSaveDir ? "true" : "false",
+      "show_sidebar_status": s.showSidebarStatus ? "true" : "false",
+      "show_sidebar_queues": s.showSidebarQueues ? "true" : "false",
+      "show_sidebar_category": s.showSidebarCategory ? "true" : "false",
     };
   }
 
@@ -666,8 +721,11 @@ export const useDownloadStore = defineStore("download", () => {
     isPriorityTask,
     moveTaskToQueue,
     queueStates,
+    queueLabels,
     queueTaskCounts,
     toggleQueue,
+    loadQueues,
+    saveQueues,
     revealInFolder,
     sendNotification,
     preventSleep,

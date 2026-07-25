@@ -49,8 +49,8 @@ const selectedBytes = computed(() =>
       <!-- Title -->
       <div class="flex items-center justify-between px-5 py-4" :style="{ borderBottom: '1px solid #3A3A3C' }">
         <div class="flex items-center gap-2.5 min-w-0">
-          <div class="flex h-7 w-7 items-center justify-center rounded-md shrink-0" :style="{ backgroundColor: 'rgba(59,130,246,0.18)' }">
-            <HardDrive class="h-3.5 w-3.5" :style="{ color: '#3B82F6' }" />
+          <div class="flex h-7 w-7 items-center justify-center rounded-md shrink-0" :style="{ backgroundColor: 'rgba(var(--accent-rgb),0.18)' }">
+            <HardDrive class="h-3.5 w-3.5" :style="{ color: 'var(--accent)' }" />
           </div>
           <div class="min-w-0">
             <h2 class="text-sm font-semibold truncate" :style="{ color: '#F5F5F7' }">{{ meta.name }}</h2>
@@ -95,7 +95,7 @@ const selectedBytes = computed(() =>
           @mouseleave="$event.target.style.backgroundColor='transparent'"
         >取消</button>
         <button @click="emit('confirm', Array.from(selected))" class="rounded-md px-4 py-1.5 text-xs transition-colors"
-          :style="{ backgroundColor: '#3B82F6', color: '#FFFFFF' }"
+          :style="{ backgroundColor: 'var(--accent)', color: '#FFFFFF' }"
           @mouseenter="$event.target.style.opacity='0.9'"
           @mouseleave="$event.target.style.opacity='1'"
         >

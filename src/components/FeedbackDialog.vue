@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { X, Send } from "lucide-vue-next";
+import { invoke } from "@tauri-apps/api/core";
 
 const emit = defineEmits<{ close: [] }>();
 
@@ -9,17 +10,27 @@ const message = ref("");
 const contact = ref("");
 const sent = ref(false);
 
-function submit() {
+async function submit() {
   if (!message.value.trim()) return;
-  const entry = { type: feedbackType.value, message: message.value, contact: contact.value, time: new Date().toISOString() };
-  // Persist to localStorage
+  const feedback = {
+    feedback_type: feedbackType.value,
+    message: message.value,
+    contact: contact.value,
+    time: new Date().toISOString(),
+  };
   try {
-    const existing = JSON.parse(localStorage.getItem('ns_feedback') || '[]');
-    existing.push(entry);
-    localStorage.setItem('ns_feedback', JSON.stringify(existing));
-  } catch (_) {}
-  // Log to console for developer access
-  console.log("Feedback saved:", entry);
+    await invoke("submit_feedback", { feedback });
+  } catch (e) {
+    console.error("Failed to submit feedback:", e);
+    // Fallback: persist to localStorage
+    try {
+      const existing = JSON.parse(localStorage.getItem('ns_feedback') || '[]');
+      existing.push(feedback);
+      localStorage.setItem('ns_feedback', JSON.stringify(existing));
+    } catch (e2) {
+      console.error("Failed to save feedback fallback:", e2);
+    }
+  }
   sent.value = true;
 }
 </script>
@@ -55,7 +66,7 @@ function submit() {
                 @click="feedbackType = t.id"
                 class="rounded-md px-3 py-1.5 text-xs transition-colors"
                 :style="{
-                  backgroundColor: feedbackType === t.id ? '#3B82F6' : '#3A3A3C',
+                  backgroundColor: feedbackType === t.id ? 'var(--accent)' : '#3A3A3C',
                   color: feedbackType === t.id ? '#fff' : '#A1A1A6',
                 }"
               >{{ t.label }}</button>
@@ -78,7 +89,7 @@ function submit() {
         </div>
         <div class="flex justify-end px-4 py-3" :style="{ borderTop: '1px solid #48484A' }">
           <button @click="submit" class="flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors"
-            :style="{ backgroundColor: '#3B82F6', color: '#fff' }">
+            :style="{ backgroundColor: 'var(--accent)', color: '#fff' }">
             <Send class="h-3.5 w-3.5" /> 发送
           </button>
         </div>

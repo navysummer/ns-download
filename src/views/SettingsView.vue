@@ -5,6 +5,7 @@ import { downloadDir } from "@tauri-apps/api/path";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import wxPayImg from "../assets/wx_pay.jpg";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import {
   Settings, Palette, Download, Globe, Server, Info, Puzzle,
   FolderOpen, PanelLeft, PanelTop, BellOff,
@@ -29,7 +30,7 @@ const SettingRow = defineComponent({
       h("button", {
         onClick: () => emit("update:modelValue", !val),
         class: "w-9 h-5 rounded-full transition-colors relative",
-        style: { backgroundColor: val ? "#3B82F6" : "#48484A" },
+        style: { backgroundColor: val ? "var(--accent)" : "#48484A" },
       }, [
         h("span", {
           class: "absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform",
@@ -54,7 +55,7 @@ const ApiFeatureCard = defineComponent({
         h("button", {
           onClick: () => emit("update:modelValue", !props.modelValue),
           class: "w-9 h-5 rounded-full transition-colors relative",
-          style: { backgroundColor: val ? "#3B82F6" : "#48484A" },
+          style: { backgroundColor: val ? "var(--accent)" : "#48484A" },
         }, [
           h("span", {
             class: "absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform",
@@ -89,7 +90,6 @@ const categories = [
 ];
 
 const saveDir = ref(store.settings.saveDir);
-const proxyProtocol = ref("http");
 const uaPreset = ref("default");
 
 const uaPresets: Record<string, string> = {
@@ -167,7 +167,8 @@ async function detectExtension(name: string) {
         ytdlpInfo.value = { status: "未安装", version: "", path: "" };
       }
     }
-  } catch {
+  } catch (e) {
+    console.error(`Failed to detect ${name}:`, e);
     if (name === "ffmpeg") {
       ffmpegInfo.value = { status: "未安装", version: "", path: "" };
     } else {
@@ -183,7 +184,7 @@ async function checkUpdate() {
   updateChecking.value = true;
   updateInfo.value = null;
   try {
-    updateInfo.value = await invoke("check_update", { currentVersion: "v0.1.0" });
+    updateInfo.value = await invoke("check_update", { currentVersion: await getVersion() });
   } catch (e) {
     updateInfo.value = { has_update: false, latest_version: "", download_url: "", body: "", error_message: String(e) };
   }
@@ -264,6 +265,44 @@ const settingsKeyMap: Record<string, (v: string) => void> = {
   "auto_startup": (v) => store.settings.autoStartup = v === "true",
   "notify_on_complete": (v) => store.settings.notifyOnComplete = v !== "false",
   "keep_awake": (v) => store.settings.keepAwake = v !== "false",
+  "use_server_time": (v) => store.settings.useServerTime = v === "true",
+  "proxy_type": (v) => store.settings.proxyProtocol = v,
+  "bt_enable_dht": (v) => store.settings.btEnableDht = v === "true",
+  "bt_enable_upnp": (v) => store.settings.btEnableUpnp = v === "true",
+  "bt_port_start": (v) => store.settings.btPortStart = parseInt(v) || 6881,
+  "bt_port_end": (v) => store.settings.btPortEnd = parseInt(v) || 6889,
+  "bt_custom_trackers": (v) => store.settings.btTrackerList = v,
+  "bt_tracker_sub_urls": (v) => store.settings.btTrackerSubUrls = v,
+  "ed2k_enable_kad": (v) => store.settings.ed2kEnableKad = v === "true",
+  "ed2k_enable_upnp": (v) => store.settings.ed2kEnableUpnp = v === "true",
+  "ed2k_listen_port": (v) => store.settings.ed2kListenPort = parseInt(v) || 0,
+  "ed2k_server_list": (v) => store.settings.ed2kServerList = v,
+  "ed2k_server_sub_urls": (v) => store.settings.ed2kServerSubUrls = v,
+  "ed2k_nodes_dat_url": (v) => store.settings.ed2kNodesDatUrl = v,
+  "local_server_enabled": (v) => store.settings.localServerEnabled = v === "true",
+  "local_server_port": (v) => store.settings.localServerPort = parseInt(v) || 17800,
+  "local_server_token": (v) => store.settings.localServerToken = v,
+  "local_server_takeover_enabled": (v) => store.settings.localServerTakeoverEnabled = v !== "false",
+  "local_server_jsonrpc_enabled": (v) => store.settings.localServerJsonrpcEnabled = v !== "false",
+  "local_server_api_enabled": (v) => store.settings.localServerApiEnabled = v === "true",
+  "local_server_mcp_enabled": (v) => store.settings.localServerMcpEnabled = v === "true",
+  "ui_theme": (v) => store.settings.theme = v,
+  "ui_accent_color": (v) => store.settings.accentColor = v,
+  "ui_language": (v) => store.settings.language = v,
+  "ui_scale": (v) => store.settings.uiScale = parseInt(v) || 100,
+  "silent_download": (v) => store.settings.silentDownload = v === "true",
+  "default_queue_id": (v) => store.settings.defaultQueueId = v,
+  "ffmpeg_path": (v) => store.settings.ffmpegPath = v,
+  "ytdlp_path": (v) => store.settings.ytdlpPath = v,
+  "auto_check_update": (v) => store.settings.autoCheckUpdate = v !== "false",
+  "update_channel": (v) => store.settings.updateChannel = v,
+  "reveal_file_cmd": (v) => store.settings.revealFileCmd = v,
+  "torrent_associated": (v) => store.settings.torrentAssociated = v === "true",
+  "conn_policy_count": (v) => store.settings.connPolicyCount = parseInt(v) || 0,
+  "remember_last_save_dir": (v) => store.settings.rememberLastSaveDir = v === "true",
+  "show_sidebar_status": (v) => store.settings.showSidebarStatus = v === "true",
+  "show_sidebar_queues": (v) => store.settings.showSidebarQueues = v === "true",
+  "show_sidebar_category": (v) => store.settings.showSidebarCategory = v === "true",
 };
 
 function confirmAddCategory() {
@@ -293,7 +332,9 @@ onMounted(async () => {
     try {
       saveDir.value = await downloadDir();
       store.settings.saveDir = saveDir.value;
-    } catch {}
+    } catch (e) {
+      console.error("Failed to get download dir:", e);
+    }
   }
   detectExtension("ffmpeg");
   detectExtension("yt-dlp");
@@ -350,7 +391,7 @@ async function testProxy() {
   proxyTestResult.value = null;
   try {
     const result = await invoke<{ success: boolean; latency_ms: number; error_message: string }>("test_proxy", {
-      proxyType: proxyProtocol.value || store.settings.proxyType,
+      proxyType: store.settings.proxyProtocol || 'http',
       proxyHost: host,
       proxyPort: port,
       proxyUsername: store.settings.proxyUsername,
@@ -380,17 +421,17 @@ async function testProxy() {
         class="group relative flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm transition-colors text-left"
         :class="{ 'is-selected': activeCategory === cat.id }"
         :style="{
-          backgroundColor: activeCategory === cat.id ? 'rgba(59,130,246,0.18)' : 'transparent',
-          color: activeCategory === cat.id ? '#60A5FA' : '#F5F5F7',
+          backgroundColor: activeCategory === cat.id ? 'rgba(var(--accent-rgb),0.18)' : 'transparent',
+          color: activeCategory === cat.id ? 'var(--accent)' : '#F5F5F7',
           fontWeight: activeCategory === cat.id ? 600 : 400,
         }"
-        @mouseenter="($event.currentTarget as HTMLElement).style.backgroundColor = activeCategory === cat.id ? 'rgba(59,130,246,0.18)' : '#3A3A3C'"
-        @mouseleave="($event.currentTarget as HTMLElement).style.backgroundColor = activeCategory === cat.id ? 'rgba(59,130,246,0.18)' : 'transparent'"
+        @mouseenter="($event.currentTarget as HTMLElement).style.backgroundColor = activeCategory === cat.id ? 'rgba(var(--accent-rgb),0.18)' : '#3A3A3C'"
+        @mouseleave="($event.currentTarget as HTMLElement).style.backgroundColor = activeCategory === cat.id ? 'rgba(var(--accent-rgb),0.18)' : 'transparent'"
       >
-        <component :is="cat.icon" class="w-4 h-4" :style="{ color: activeCategory === cat.id ? '#60A5FA' : '#A1A1A6' }" />
+        <component :is="cat.icon" class="w-4 h-4" :style="{ color: activeCategory === cat.id ? 'var(--accent)' : '#A1A1A6' }" />
         {{ cat.label }}
         <!-- 3px 右侧选中指示条 -->
-        <span v-if="activeCategory === cat.id" class="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-3.5 rounded-full" style="background-color: #60A5FA;" />
+        <span v-if="activeCategory === cat.id" class="absolute right-0 top-1/2 -translate-y-1/2 w-0.5 h-3.5 rounded-full" style="background-color: var(--accent);" />
       </button>
     </div>
 
@@ -475,19 +516,19 @@ async function testProxy() {
                       <button @click="store.moveCategory(i, i - 1)" :disabled="i === 0" class="w-4 h-3 flex items-center justify-center disabled:opacity-30 hover:opacity-80" style="color: #8E8E93;"><ChevronUp class="w-3 h-3" /></button>
                       <button @click="store.moveCategory(i, i + 1)" :disabled="i === store.categories.length - 1" class="w-4 h-3 flex items-center justify-center disabled:opacity-30 hover:opacity-80" style="color: #8E8E93;"><ChevronDown class="w-3 h-3" /></button>
                     </div>
-                    <div class="w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold shrink-0" style="background-color: rgba(59,130,246,0.15); color: #60A5FA;">
+                    <div class="w-7 h-7 rounded-md flex items-center justify-center text-xs font-bold shrink-0" style="background-color: rgba(var(--accent-rgb),0.15); color: var(--accent);">
                       {{ cat.name.charAt(0) }}
                     </div>
                     <div class="flex-1 min-w-0">
                       <div class="flex items-center gap-1.5">
                         <span class="text-xs font-medium truncate" :style="{ color: cat.visible ? '#F5F5F7' : '#8E8E93' }">{{ cat.name }}</span>
-                        <span v-if="cat.isBuiltin" class="text-[9px] px-1.5 py-0.5 rounded font-medium" style="background-color: rgba(59,130,246,0.12); color: #60A5FA;">内置</span>
+                        <span v-if="cat.isBuiltin" class="text-[9px] px-1.5 py-0.5 rounded font-medium" style="background-color: rgba(var(--accent-rgb),0.12); color: var(--accent);">内置</span>
                         <EyeOff v-if="!cat.visible" class="w-3 h-3 shrink-0" style="color: #8E8E93;" />
                       </div>
                       <p v-if="cat.extensions.length > 0" class="text-[10px] truncate mt-0.5" style="color: #8E8E93;">.{{ cat.extensions.join(', .') }}</p>
                     </div>
                     <div class="hidden group-hover:flex items-center gap-1">
-                      <button @click="store.toggleCategoryVisibility(cat.id)" class="w-6 h-6 rounded flex items-center justify-center hover:opacity-80" :style="{ color: cat.visible ? '#8E8E93' : '#60A5FA' }">
+                      <button @click="store.toggleCategoryVisibility(cat.id)" class="w-6 h-6 rounded flex items-center justify-center hover:opacity-80" :style="{ color: cat.visible ? '#8E8E93' : 'var(--accent)' }">
                         <Eye v-if="cat.visible" class="w-3 h-3" />
                         <EyeOff v-else class="w-3 h-3" />
                       </button>
@@ -509,7 +550,7 @@ async function testProxy() {
                   </div>
                   <div class="flex justify-end gap-2 pt-1">
                     <button @click="showAddCategory = false; newCategoryName = ''; newCategoryExts = ''" class="h-7 px-3 rounded text-xs transition-colors" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #A1A1A6;">取消</button>
-                    <button @click="confirmAddCategory" class="h-7 px-3 rounded text-xs transition-colors" style="background-color: #3B82F6; color: #fff;">添加</button>
+                    <button @click="confirmAddCategory" class="h-7 px-3 rounded text-xs transition-colors" style="background-color: var(--accent); color: #fff;">添加</button>
                   </div>
                 </div>
               </div>
@@ -545,9 +586,9 @@ async function testProxy() {
                     @click="store.settings.theme = opt.id"
                     class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-colors"
                     :style="{
-                      backgroundColor: store.settings.theme === opt.id ? 'rgba(59,130,246,0.18)' : '#1C1C1E',
-                      border: store.settings.theme === opt.id ? '1.5px solid rgba(59,130,246,0.4)' : '1px solid #48484A',
-                      color: store.settings.theme === opt.id ? '#60A5FA' : '#A1A1A6',
+                      backgroundColor: store.settings.theme === opt.id ? 'rgba(var(--accent-rgb),0.18)' : '#1C1C1E',
+                      border: store.settings.theme === opt.id ? '1.5px solid rgba(var(--accent-rgb),0.4)' : '1px solid #48484A',
+                      color: store.settings.theme === opt.id ? 'var(--accent)' : '#A1A1A6',
                     }"
                   ><component :is="opt.icon" class="w-3.5 h-3.5" /> {{ opt.label }}</button>
                 </div>
@@ -557,20 +598,20 @@ async function testProxy() {
               <div class="px-4 py-3 space-y-3">
                 <div><label class="text-sm font-medium" style="color: #F5F5F7;">主题选择</label><p class="text-xs mt-0.5" style="color: #8E8E93;">选择预设主题方案</p></div>
                 <div class="flex flex-wrap gap-2">
-                  <button v-for="th in themePresets" :key="th.id" @click="store.settings.accentColor = th.color"
+                  <button v-for="th in themePresets" :key="th.id" @click="store.settings.accentColor = th.color; store.settings.theme = th.appearance"
                     class="rounded-xl text-left transition-all hover:scale-[1.02]"
                     :style="{
                       width: '120px',
                       backgroundColor: '#1C1C1E',
-                      border: (store.settings.accentColor === th.color ? '1.5px solid rgba(59,130,246,0.5)' : '1px solid #48484A'),
-                      boxShadow: store.settings.accentColor === th.color ? '0 0 10px rgba(59,130,246,0.2)' : 'none',
+                      border: (store.settings.accentColor === th.color ? '1.5px solid rgba(var(--accent-rgb),0.5)' : '1px solid #48484A'),
+                      boxShadow: store.settings.accentColor === th.color ? '0 0 10px rgba(var(--accent-rgb),0.2)' : 'none',
                     }"
                   >
                     <div class="h-[52px] rounded-t-xl flex items-center justify-center" :style="{ backgroundColor: th.color }">
                       <span class="text-white text-lg font-bold" style="text-shadow: 0 1px 3px rgba(0,0,0,0.3);">{{ th.label.charAt(0) }}</span>
                     </div>
                     <div class="px-2 py-1.5">
-                      <div class="text-xs font-medium truncate" :style="{ color: store.settings.accentColor === th.color ? '#60A5FA' : '#F5F5F7' }">{{ th.label }}</div>
+                      <div class="text-xs font-medium truncate" :style="{ color: store.settings.accentColor === th.color ? 'var(--accent)' : '#F5F5F7' }">{{ th.label }}</div>
                       <div class="text-[10px] mt-0.5" style="color: #8E8E93;">{{ th.appearance === 'dark' ? '深色' : '浅色' }}</div>
                     </div>
                   </button>
@@ -610,9 +651,9 @@ async function testProxy() {
                     @click="store.settings.uiScale = pct"
                     class="px-2.5 py-1 rounded-md text-xs font-medium transition-colors"
                     :style="{
-                      backgroundColor: store.settings.uiScale === pct ? 'rgba(59,130,246,0.18)' : 'transparent',
-                      border: store.settings.uiScale === pct ? '1px solid rgba(59,130,246,0.4)' : '1px solid transparent',
-                      color: store.settings.uiScale === pct ? '#60A5FA' : '#A1A1A6',
+                      backgroundColor: store.settings.uiScale === pct ? 'rgba(var(--accent-rgb),0.18)' : 'transparent',
+                      border: store.settings.uiScale === pct ? '1px solid rgba(var(--accent-rgb),0.4)' : '1px solid transparent',
+                      color: store.settings.uiScale === pct ? 'var(--accent)' : '#A1A1A6',
                     }"
                   >{{ pct }}%</button>
                 </div>
@@ -676,7 +717,7 @@ async function testProxy() {
                 <div class="flex gap-1">
                   <button v-for="n in [4,8,16,32,64]" :key="n" @click="store.settings.autoMaxConnections = n"
                     class="px-2 py-1 rounded text-xs transition-colors"
-                    :style="{ backgroundColor: store.settings.autoMaxConnections === n ? 'rgba(59,130,246,0.18)' : 'transparent', border: store.settings.autoMaxConnections === n ? '1px solid rgba(59,130,246,0.4)' : '1px solid transparent', color: store.settings.autoMaxConnections === n ? '#60A5FA' : '#A1A1A6' }"
+                    :style="{ backgroundColor: store.settings.autoMaxConnections === n ? 'rgba(var(--accent-rgb),0.18)' : 'transparent', border: store.settings.autoMaxConnections === n ? '1px solid rgba(var(--accent-rgb),0.4)' : '1px solid transparent', color: store.settings.autoMaxConnections === n ? 'var(--accent)' : '#A1A1A6' }"
                   >{{ n }}</button>
                 </div>
               </div>
@@ -691,7 +732,7 @@ async function testProxy() {
                 <div class="flex gap-1">
                   <button v-for="n in [1,2,3,5,8,10]" :key="n" @click="store.settings.maxConcurrent = n"
                     class="px-2 py-1 rounded text-xs transition-colors"
-                    :style="{ backgroundColor: store.settings.maxConcurrent === n ? 'rgba(59,130,246,0.18)' : 'transparent', border: store.settings.maxConcurrent === n ? '1px solid rgba(59,130,246,0.4)' : '1px solid transparent', color: store.settings.maxConcurrent === n ? '#60A5FA' : '#A1A1A6' }"
+                    :style="{ backgroundColor: store.settings.maxConcurrent === n ? 'rgba(var(--accent-rgb),0.18)' : 'transparent', border: store.settings.maxConcurrent === n ? '1px solid rgba(var(--accent-rgb),0.4)' : '1px solid transparent', color: store.settings.maxConcurrent === n ? 'var(--accent)' : '#A1A1A6' }"
                   >{{ n }}</button>
                 </div>
               </div>
@@ -772,7 +813,7 @@ async function testProxy() {
                 <div class="flex gap-2">
                   <button v-for="opt in [{id:'none',icon:Unplug,label:'无代理'},{id:'system',icon:Monitor,label:'系统代理'},{id:'manual',icon:Settings,label:'手动代理'}]" :key="opt.id" @click="store.settings.proxyType = opt.id"
                     class="flex items-center justify-center gap-1.5 flex-1 h-9 rounded-lg text-xs font-medium transition-colors"
-                    :style="{ backgroundColor: store.settings.proxyType === opt.id ? 'rgba(59,130,246,0.18)' : '#1C1C1E', border: store.settings.proxyType === opt.id ? '1px solid rgba(59,130,246,0.4)' : '1px solid #48484A', color: store.settings.proxyType === opt.id ? '#60A5FA' : '#A1A1A6' }"
+                    :style="{ backgroundColor: store.settings.proxyType === opt.id ? 'rgba(var(--accent-rgb),0.18)' : '#1C1C1E', border: store.settings.proxyType === opt.id ? '1px solid rgba(var(--accent-rgb),0.4)' : '1px solid #48484A', color: store.settings.proxyType === opt.id ? 'var(--accent)' : '#A1A1A6' }"
                   ><component :is="opt.icon" class="w-3.5 h-3.5" /> {{ opt.label }}</button>
                 </div>
                 <div v-if="store.settings.proxyType === 'system'" class="rounded-lg px-3 py-2.5" style="background-color: #1C1C1E; border: 1px solid #48484A;">
@@ -781,7 +822,7 @@ async function testProxy() {
                 <div v-if="store.settings.proxyType === 'manual'" class="space-y-4">
                   <div class="flex items-center gap-3">
                     <span class="text-xs w-16 shrink-0" style="color: #A1A1A6;">类型</span>
-                    <select v-model="proxyProtocol" class="flex-1 h-8 rounded-md px-2.5 text-sm outline-none" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #F5F5F7;"><option value="http">HTTP</option><option value="https">HTTPS</option><option value="socks5">SOCKS5</option></select>
+                    <select v-model="store.settings.proxyProtocol" @change="store.saveSettingsDebounced()" class="flex-1 h-8 rounded-md px-2.5 text-sm outline-none" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #F5F5F7;"><option value="http">HTTP</option><option value="https">HTTPS</option><option value="socks5">SOCKS5</option></select>
                   </div>
                   <div class="flex items-center gap-3">
                     <span class="text-xs w-16 shrink-0" style="color: #A1A1A6;">地址</span>
@@ -870,7 +911,7 @@ async function testProxy() {
               <div class="px-4 py-3 space-y-3">
                 <div class="flex items-center gap-2">
                   <span v-if="ffmpegInfo?.status === '系统'" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="background-color: rgba(34,197,94,0.15); color: #22C55E;">系统</span>
-                  <span v-else class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="background-color: rgba(59,130,246,0.15); color: #60A5FA;">未安装</span>
+                  <span v-else class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="background-color: rgba(var(--accent-rgb),0.15); color: var(--accent);">未安装</span>
                   <span v-if="ffmpegInfo?.version" class="text-xs" style="color: #8E8E93;">{{ ffmpegInfo.version }}</span>
                 </div>
                 <p v-if="ffmpegInfo?.path" class="text-xs" style="color: #8E8E93;">{{ ffmpegInfo.path }}</p>
@@ -894,7 +935,7 @@ async function testProxy() {
               <div class="px-4 py-3 space-y-3">
                 <div class="flex items-center gap-2">
                   <span v-if="ytdlpInfo?.status === '系统'" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="background-color: rgba(34,197,94,0.15); color: #22C55E;">系统</span>
-                  <span v-else class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="background-color: rgba(59,130,246,0.15); color: #60A5FA;">未安装</span>
+                  <span v-else class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="background-color: rgba(var(--accent-rgb),0.15); color: var(--accent);">未安装</span>
                   <span v-if="ytdlpInfo?.version" class="text-xs" style="color: #8E8E93;">{{ ytdlpInfo.version }}</span>
                 </div>
                 <p v-if="ytdlpInfo?.path" class="text-xs" style="color: #8E8E93;">{{ ytdlpInfo.path }}</p>
@@ -1001,6 +1042,12 @@ async function testProxy() {
                 <p class="text-xs" style="color: #8E8E93;">0 表示自动分配</p>
                 <input v-model.number="store.settings.ed2kListenPort" type="number" min="0" max="65535" class="h-9 w-28 rounded-md px-3 text-sm outline-none text-center" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #F5F5F7;" />
               </div>
+              <Divider />
+              <div class="px-4 py-3 space-y-2">
+                <label class="text-sm font-medium" style="color: #F5F5F7;">KAD nodes.dat 订阅</label>
+                <p class="text-xs" style="color: #8E8E93;">KAD 网络节点列表下载地址</p>
+                <input v-model="store.settings.ed2kNodesDatUrl" type="text" class="w-full h-9 rounded-md px-3 text-sm outline-none" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #F5F5F7;" />
+              </div>
             </section>
           </template>
 
@@ -1064,8 +1111,8 @@ async function testProxy() {
                 <span>Tauri 2.x</span><span style="color: #48484A;">·</span><span>Vue 3.x</span><span style="color: #48484A;">·</span><span>Rust</span><span style="color: #48484A;">·</span><span>TypeScript</span>
               </div>
               <div class="flex gap-3 pt-1">
-                <a href="https://github.com/navysummer/ns-download" target="_blank" class="text-xs underline underline-offset-2 hover:opacity-80" style="color: #60A5FA;">GitHub</a>
-                <a href="https://github.com/navysummer/ns-download/issues" target="_blank" class="text-xs underline underline-offset-2 hover:opacity-80" style="color: #60A5FA;">反馈</a>
+                <a href="https://github.com/navysummer/ns-download" target="_blank" class="text-xs underline underline-offset-2 hover:opacity-80" style="color: var(--accent);">GitHub</a>
+                <a href="https://github.com/navysummer/ns-download/issues" target="_blank" class="text-xs underline underline-offset-2 hover:opacity-80" style="color: var(--accent);">反馈</a>
               </div>
             </div>
           </section>
@@ -1081,14 +1128,14 @@ async function testProxy() {
               </div>
               <Divider />
               <div class="px-4 py-3">
-                <button @click="checkUpdate" :disabled="updateChecking" class="h-8 px-4 rounded-md text-xs font-medium transition-colors hover:opacity-90" style="background-color: #3B82F6; color: #fff;">
+                <button @click="checkUpdate" :disabled="updateChecking" class="h-8 px-4 rounded-md text-xs font-medium transition-colors hover:opacity-90" style="background-color: var(--accent); color: #fff;">
                   {{ updateChecking ? '检查中…' : '检查更新' }}
                 </button>
                 <div v-if="updateInfo" class="mt-2 text-xs" :style="{ color: updateInfo.has_update ? '#22C55E' : updateInfo.error_message ? '#EF4444' : '#8E8E93' }">
                   <template v-if="updateInfo.error_message">检查失败: {{ updateInfo.error_message }}</template>
                   <template v-else-if="updateInfo.has_update">
-                    发现新版本 <a :href="updateInfo.download_url" target="_blank" style="color: #60A5FA;">{{ updateInfo.latest_version }}</a>
-                    <button v-if="updateInfo.body" @click="showChangelog = true" class="ml-2 underline underline-offset-2" style="color: #60A5FA;">查看更新内容</button>
+                    发现新版本 <a :href="updateInfo.download_url" target="_blank" style="color: var(--accent);">{{ updateInfo.latest_version }}</a>
+                    <button v-if="updateInfo.body" @click="showChangelog = true" class="ml-2 underline underline-offset-2" style="color: var(--accent);">查看更新内容</button>
                   </template>
                   <template v-else>已是最新版本</template>
                 </div>
@@ -1121,7 +1168,7 @@ async function testProxy() {
             <section class="rounded-xl overflow-hidden" style="background-color: #2C2C2E; border: 1px solid #48484A;">
               <div class="px-4 py-4 flex flex-col items-center gap-3">
                 <p class="text-xs text-center leading-relaxed" style="color: #8E8E93;">如果您觉得 ns-download 对您有帮助，欢迎扫码支持开发者</p>
-                <button @click="showDonate = true; donateZoom = 0.5; donatePanX = 0; donatePanY = 0" class="flex items-center gap-1.5 h-9 px-5 rounded-lg text-xs font-medium transition-colors hover:opacity-90" style="background-color: #3B82F6; color: #fff;">
+                <button @click="showDonate = true; donateZoom = 0.5; donatePanX = 0; donatePanY = 0" class="flex items-center gap-1.5 h-9 px-5 rounded-lg text-xs font-medium transition-colors hover:opacity-90" style="background-color: var(--accent); color: #fff;">
                   <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                   捐赠支持
                 </button>
@@ -1159,7 +1206,7 @@ async function testProxy() {
                 <div class="flex justify-end px-4 py-3" style="border-top: 1px solid #48484A;">
                   <a :href="updateInfo.download_url" target="_blank"
                     class="rounded-md px-4 py-1.5 text-xs font-medium transition-colors"
-                    style="background-color: #3B82F6; color: #fff;">前往下载</a>
+                    style="background-color: var(--accent); color: #fff;">前往下载</a>
                 </div>
               </div>
             </div>
