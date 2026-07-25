@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::collections::HashMap;
+use std::time::Duration;
 use tauri::State;
 use ns_download_engine::{Engine, EngineConfig, NoopSelection};
 use ns_download_engine::bt_downloader::BtConfig;
@@ -22,6 +23,7 @@ pub struct TaskResponse {
     pub created_at: String,
     pub completed_at: String,
     pub segments: i32,
+    pub queue_id: String,
 }
 
 impl From<TaskInfo> for TaskResponse {
@@ -38,6 +40,7 @@ impl From<TaskInfo> for TaskResponse {
             created_at: t.created_at,
             completed_at: t.completed_at,
             segments: t.segments,
+            queue_id: t.queue_id,
         }
     }
 }
@@ -48,7 +51,24 @@ pub struct CreateTaskSpec {
     pub save_dir: String,
     pub file_name: Option<String>,
     pub segments: Option<i32>,
+    #[serde(default)]
+    pub torrent_file_bytes: Vec<u8>,
+    #[serde(default)]
+    pub selected_file_indices: Vec<i32>,
+    #[serde(default)]
+    pub proxy_url: String,
+    #[serde(default)]
+    pub user_agent: String,
+    #[serde(default)]
+    pub cookies: String,
+    #[serde(default)]
+    pub referrer: String,
+    #[serde(default)]
+    pub checksum: String,
+    #[serde(default)]
+    pub extra_headers: std::collections::HashMap<String, String>,
 }
+
 
 #[tauri::command]
 pub async fn init_engine(app_handle: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
@@ -85,6 +105,10 @@ pub async fn init_engine(app_handle: tauri::AppHandle, state: State<'_, AppState
     settings::apply_all(&mut engine).await;
 
     *engine_guard = Some(engine);
+    drop(engine_guard);
+
+    spawn_subscription_tasks(state.engine.clone()).await;
+
     Ok(())
 }
 
@@ -105,8 +129,19 @@ pub async fn create_task(state: State<'_, AppState>, spec: CreateTaskSpec) -> Re
     let new_spec = ns_download_engine::download_manager::NewTaskSpec {
         url: spec.url,
         save_dir: spec.save_dir,
-        file_name: spec.file_name.unwrap_or_default(),
+        file_name: match spec.file_name {
+            Some(ref n) if !n.is_empty() => n.clone(),
+            _ => Default::default(),
+        },
         segments: spec.segments.unwrap_or(0),
+        torrent_file_bytes: spec.torrent_file_bytes,
+        selected_file_indices: spec.selected_file_indices,
+        proxy_url: spec.proxy_url,
+        user_agent: spec.user_agent,
+        cookies: spec.cookies,
+        referrer: spec.referrer,
+        checksum: spec.checksum,
+        extra_headers: spec.extra_headers,
         ..Default::default()
     };
 
@@ -144,6 +179,19 @@ pub async fn set_task_priority(
 }
 
 #[tauri::command]
+pub async fn set_task_segments(
+    state: State<'_, AppState>,
+    task_id: String,
+    segments: i32,
+) -> Result<(), String> {
+    let mut engine_guard = state.engine.lock().await;
+    let engine = engine_guard.as_mut().ok_or("engine not initialized")?;
+    engine.manager.set_task_segments(&task_id, segments).await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn move_task_to_queue(
     state: State<'_, AppState>,
     task_id: String,
@@ -155,34 +203,82 @@ pub async fn move_task_to_queue(
     Ok(())
 }
 
+#[derive(Serialize)]
+pub struct TorrentProbeFileResponse {
+    pub index: i32,
+    pub path: String,
+    pub size: i64,
+}
+
+#[derive(Serialize)]
+pub struct TorrentProbeResponse {
+    pub name: String,
+    pub total_bytes: i64,
+    pub files: Vec<TorrentProbeFileResponse>,
+    pub error: String,
+}
+
+#[tauri::command]
+pub async fn probe_torrent_file(
+    state: State<'_, AppState>,
+    torrent_bytes: Vec<u8>,
+) -> Result<TorrentProbeResponse, String> {
+    let mut engine_guard = state.engine.lock().await;
+    let engine = engine_guard.as_mut().ok_or("engine not initialized")?;
+    let probe_id = uuid::Uuid::new_v4().to_string();
+    let result = engine.probe_torrent_meta(probe_id, torrent_bytes).await;
+    if !result.error.is_empty() {
+        return Err(result.error);
+    }
+    Ok(TorrentProbeResponse {
+        name: result.name,
+        total_bytes: result.total_bytes,
+        files: result.files.into_iter().map(|f| TorrentProbeFileResponse {
+            index: f.index,
+            path: f.path,
+            size: f.size,
+        }).collect(),
+        error: result.error,
+    })
+}
+
 #[tauri::command]
 pub async fn reveal_in_folder(path: String) -> Result<(), String> {
-    let p = std::path::Path::new(&path);
-    if p.exists() {
-        #[cfg(target_os = "macos")]
-        std::process::Command::new("open")
-            .arg("-R")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        #[cfg(target_os = "windows")]
-        std::process::Command::new("explorer")
-            .arg("/select,")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-        #[cfg(target_os = "linux")]
-        std::process::Command::new("xdg-open")
-            .arg(p.parent().unwrap_or(p))
-            .spawn()
-            .map_err(|e| e.to_string())?;
+    #[cfg(not(mobile))]
+    {
+        let p = std::path::Path::new(&path);
+        if p.exists() {
+            #[cfg(target_os = "macos")]
+            std::process::Command::new("open")
+                .arg("-R")
+                .arg(&path)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+            #[cfg(target_os = "windows")]
+            std::process::Command::new("explorer")
+                .arg("/select,")
+                .arg(&path)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+            #[cfg(target_os = "linux")]
+            {
+                if let Some(parent) = p.parent() {
+                    std::process::Command::new("xdg-open")
+                        .arg(parent)
+                        .spawn()
+                        .map_err(|e| e.to_string())?;
+                }
+            }
+        }
     }
+    #[cfg(mobile)]
+    return Err("Not supported on mobile".to_string());
     Ok(())
 }
 
 #[tauri::command]
 pub async fn send_notification(title: String, body: String) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
+    #[cfg(all(not(mobile), target_os = "macos"))]
     {
         let script = format!(
             "display notification \"{}\" with title \"{}\"",
@@ -195,9 +291,8 @@ pub async fn send_notification(title: String, body: String) -> Result<(), String
             .spawn()
             .map_err(|e| e.to_string())?;
     }
-    #[cfg(target_os = "windows")]
+    #[cfg(all(not(mobile), target_os = "windows"))]
     {
-        // Use PowerShell for Windows notifications
         let script = format!(
             "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; \
              $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); \
@@ -212,29 +307,38 @@ pub async fn send_notification(title: String, body: String) -> Result<(), String
             .args(["-NoProfile", "-Command", &script])
             .spawn();
     }
-    #[cfg(target_os = "linux")]
+    #[cfg(all(not(mobile), target_os = "linux"))]
     {
         let _ = std::process::Command::new("notify-send")
             .args([&title, &body])
             .spawn();
     }
+    #[cfg(mobile)]
+    return Err("Not supported on mobile".to_string());
     Ok(())
 }
 
 #[tauri::command]
 pub async fn prevent_sleep(prevent: bool) -> Result<(), String> {
-    #[cfg(target_os = "macos")]
+    #[cfg(all(not(mobile), target_os = "macos"))]
     {
+        use std::process::{Command, Stdio};
         if prevent {
-            std::process::Command::new("caffeinate")
+            Command::new("caffeinate")
                 .args(["-dimsu", "-t", "86400"])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
                 .spawn()
                 .map_err(|e| e.to_string())?;
+        } else {
+            let _ = Command::new("pkill")
+                .args(["-f", "caffeinate -dimsu"])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn();
         }
-        // Note: Killing the caffeinate process is more complex
-        // For simplicity, we just let it time out
     }
-    #[cfg(target_os = "windows")]
+    #[cfg(all(not(mobile), target_os = "windows"))]
     {
         if prevent {
             std::process::Command::new("powercfg")
@@ -243,7 +347,7 @@ pub async fn prevent_sleep(prevent: bool) -> Result<(), String> {
                 .map_err(|e| e.to_string())?;
         }
     }
-    #[cfg(target_os = "linux")]
+    #[cfg(all(not(mobile), target_os = "linux"))]
     {
         if prevent {
             let _ = std::process::Command::new("systemd-inhibit")
@@ -252,11 +356,17 @@ pub async fn prevent_sleep(prevent: bool) -> Result<(), String> {
                 .spawn();
         }
     }
+    #[cfg(mobile)]
+    return Err("Not supported on mobile".to_string());
     Ok(())
 }
 
 #[tauri::command]
 pub async fn shutdown_system(action: String) -> Result<(), String> {
+    #[cfg(mobile)]
+    return Err("Not supported on mobile".to_string());
+
+    #[cfg(not(mobile))]
     match action.as_str() {
         "shutdown" => {
             #[cfg(target_os = "macos")]
@@ -302,6 +412,8 @@ pub async fn shutdown_system(action: String) -> Result<(), String> {
         }
         _ => return Err("Unknown action, use: shutdown, sleep, hibernate".into()),
     }
+
+    #[cfg(not(mobile))]
     Ok(())
 }
 
@@ -379,6 +491,7 @@ pub struct CheckUpdateResult {
     pub has_update: bool,
     pub latest_version: String,
     pub download_url: String,
+    pub body: String,
     pub error_message: String,
 }
 
@@ -398,10 +511,12 @@ pub async fn check_update(current_version: String) -> Result<CheckUpdateResult, 
                 let latest = data["tag_name"].as_str().unwrap_or("").to_string();
                 let has_update = !latest.is_empty() && latest != current_version;
                 let download_url = data["html_url"].as_str().unwrap_or("").to_string();
+                let body = data["body"].as_str().unwrap_or("").to_string();
                 return Ok(CheckUpdateResult {
                     has_update,
                     latest_version: latest,
                     download_url,
+                    body,
                     error_message: String::new(),
                 });
             }
@@ -409,6 +524,7 @@ pub async fn check_update(current_version: String) -> Result<CheckUpdateResult, 
                 has_update: false,
                 latest_version: String::new(),
                 download_url: String::new(),
+                body: String::new(),
                 error_message: "Failed to parse response".to_string(),
             })
         }
@@ -416,6 +532,7 @@ pub async fn check_update(current_version: String) -> Result<CheckUpdateResult, 
             has_update: false,
             latest_version: String::new(),
             download_url: String::new(),
+            body: String::new(),
             error_message: e.to_string(),
         }),
     }
@@ -423,6 +540,8 @@ pub async fn check_update(current_version: String) -> Result<CheckUpdateResult, 
 
 #[tauri::command]
 pub async fn check_command_exists(name: String) -> Result<Option<String>, String> {
+    #[cfg(mobile)]
+    return Ok(None);
     let output = std::process::Command::new("which")
         .arg(&name)
         .output()
@@ -487,25 +606,128 @@ pub async fn export_logs(
 
 #[tauri::command]
 pub async fn start_api_server(state: State<'_, AppState>) -> Result<(), String> {
-    let _engine_guard = state.engine.lock().await;
-    // The API server requires the native/api crate which is currently a stub.
-    // TODO: implement when native/api is completed
-    tracing::warn!("API server not yet implemented");
+    let (tx, rx) = tokio::sync::mpsc::channel(1);
+
+    let engine = state.engine.clone();
+    let port = {
+        let engine_guard = state.engine.lock().await;
+        let eng = engine_guard.as_ref().ok_or("engine not initialized")?;
+        let port_str = eng.db.get_config("local_server_port").await
+            .ok().flatten().unwrap_or_else(|| "16891".to_string());
+        let token = eng.db.get_config("local_server_token").await
+            .ok().flatten().unwrap_or_default();
+        let port: u16 = port_str.parse().unwrap_or(16891);
+        // Store the shutdown sender
+        let mut shutdown_guard = state.api_server_shutdown.lock().await;
+        *shutdown_guard = Some(tx);
+        (port, token)
+    };
+
+    // Spawn server in background
+    tokio::spawn(async move {
+        let result = crate::api_server::run_server(engine, port.0, port.1, rx).await;
+        if let Err(e) = result {
+            tracing::error!("API server failed: {e}");
+        }
+    });
+
+    tracing::info!("API server started on port {}", port.0);
     Ok(())
 }
 
 #[tauri::command]
 pub async fn stop_api_server(state: State<'_, AppState>) -> Result<(), String> {
-    let _engine_guard = state.engine.lock().await;
-    tracing::warn!("API server not yet implemented");
+    let mut shutdown_guard = state.api_server_shutdown.lock().await;
+    if let Some(tx) = shutdown_guard.take() {
+        let _ = tx.send(crate::api_server::ServerCommand::Stop).await;
+        tracing::info!("API server stop signal sent");
+    }
     Ok(())
 }
 
+/// Spawn background tasks that periodically refresh BT tracker and ED2K server
+/// subscriptions from community URLs.
+async fn spawn_subscription_tasks(engine_ref: Arc<tokio::sync::Mutex<Option<Engine>>>) {
+    // BT tracker subscription refresh
+    tokio::spawn({
+        let engine_ref = engine_ref.clone();
+        async move {
+            loop {
+                let (sub_urls, sub_enabled) = {
+                    let guard = engine_ref.lock().await;
+                    if let Some(ref eng) = *guard {
+                        let urls = eng.db.get_config("bt_tracker_sub_urls").await
+                            .ok().flatten().unwrap_or_else(ns_download_engine::tracker_subscription::default_subscription_urls);
+                        let enabled = eng.db.get_config("bt_tracker_sub_enabled").await
+                            .ok().flatten().map(|v| v == "true").unwrap_or(true);
+                        (urls, enabled)
+                    } else {
+                        break;
+                    }
+                };
+
+                if sub_enabled && !sub_urls.is_empty() {
+                    tracing::info!("Refreshing BT tracker subscriptions...");
+                    let outcome = ns_download_engine::tracker_subscription::fetch_subscriptions(&sub_urls).await;
+                    if outcome.is_success() {
+                        let merged = outcome.trackers.join("\n");
+                        let mut guard = engine_ref.lock().await;
+                        if let Some(ref mut eng_bt) = *guard {
+                            let _ = eng_bt.db.set_config("bt_tracker_sub_cache", &merged).await;
+                            settings::apply_bt_config(eng_bt, "bt_tracker_sub_cache", &merged).await;
+                        }
+                    }
+                }
+
+                tokio::time::sleep(Duration::from_secs(
+                    ns_download_engine::tracker_subscription::REFRESH_INTERVAL_SECS as u64
+                )).await;
+            }
+        }
+    });
+
+    // ED2K server subscription refresh
+    tokio::spawn(async move {
+        loop {
+            let (sub_urls, sub_enabled) = {
+                let guard = engine_ref.lock().await;
+                if let Some(ref eng) = *guard {
+                    let urls = eng.db.get_config("ed2k_server_sub_urls").await
+                        .ok().flatten().unwrap_or_else(ns_download_engine::ed2k::server_subscription::default_server_met_urls);
+                    let enabled = eng.db.get_config("ed2k_server_sub_enabled").await
+                        .ok().flatten().map(|v| v == "true").unwrap_or(true);
+                    (urls, enabled)
+                } else {
+                    break;
+                }
+            };
+
+            if sub_enabled && !sub_urls.is_empty() {
+                tracing::info!("Refreshing ED2K server subscriptions...");
+                let outcome = ns_download_engine::ed2k::server_subscription::fetch_server_subscriptions(
+                    &sub_urls,
+                ).await;
+                if outcome.is_success() {
+                    let merged = outcome.servers.join("\n");
+                    let guard = engine_ref.lock().await;
+                    if let Some(ref eng) = *guard {
+                        let _ = eng.db.set_config("ed2k_server_sub_cache", &merged).await;
+                    }
+                }
+            }
+
+            tokio::time::sleep(Duration::from_secs(
+                ns_download_engine::ed2k::server_subscription::REFRESH_INTERVAL_SECS as u64
+            )).await;
+        }
+    });
+}
+
 fn dirs_or_fallback() -> String {
-    std::env::var("HOME")
-        .or_else(|_| std::env::var("USERPROFILE"))
-        .map(|h| format!("{}/Downloads", h))
-        .unwrap_or_else(|_| "/tmp/downloads".to_string())
+    dirs::download_dir()
+        .or_else(|| dirs::home_dir())
+        .map(|p| p.join("Downloads").to_string_lossy().to_string())
+        .unwrap_or_else(|| "/tmp/downloads".to_string())
 }
 
 fn app_data_dir() -> String {

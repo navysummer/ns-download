@@ -9,6 +9,7 @@ import {
   Inbox, Clock, Tag, Circle, Pause, Play, SlidersHorizontal,
 } from "lucide-vue-next";
 import QueueManagerDialog from "./QueueManagerDialog.vue";
+import CategoryManagerDialog from "./CategoryManagerDialog.vue";
 
 const router = useRouter();
 const route = useRoute();
@@ -18,6 +19,7 @@ const queuesExpanded = ref(true);
 const categoriesExpanded = ref(true);
 const hoveredQueue = ref<string | null>(null);
 const showQueueManager = ref(false);
+const showCategoryManager = ref(false);
 
 const statusTabs = [
   { key: "all", icon: LayoutGrid, label: "全部", query: {} },
@@ -27,21 +29,27 @@ const statusTabs = [
   { key: "error", icon: CircleAlert, label: "错误", query: { status: "error" } },
 ];
 
-const queues = computed(() => [
-  { id: 'default', icon: Inbox, label: '默认', running: store.queueStates.default },
-  { id: 'later', icon: Clock, label: '稍后下载', running: store.queueStates.later },
-]);
+const queues = computed(() =>
+  Object.entries(store.queueStates).map(([id, running]) => ({
+    id,
+    icon: id === 'default' ? Inbox : id === 'later' ? Clock : Inbox,
+    label: id === 'default' ? '默认' : id === 'later' ? '稍后下载' : id,
+    running,
+  }))
+);
 
 const sidebarCategories = computed(() => {
+  const iconMap: Record<string, any> = {
+    video: Film, audio: Music, document: FileText,
+    image: ImageIcon, program: Package, archive: Archive,
+  };
   const cats = [
     { id: 'all', icon: Tag, label: '全部文件' },
-    ...store.categories.filter(c => c.isBuiltin && c.id !== 'all' && c.visible).map(c => {
-      const iconMap: Record<string, any> = {
-        video: Film, audio: Music, document: FileText,
-        image: ImageIcon, program: Package, archive: Archive,
-      };
-      return { id: c.id, icon: iconMap[c.id] || File, label: c.name };
-    }),
+    ...store.categories.filter(c => c.id !== 'all' && c.visible).map(c => ({
+      id: c.id,
+      icon: iconMap[c.id] || (c.isBuiltin ? File : Tag),
+      label: c.name,
+    })),
   ];
   return cats;
 });
@@ -116,7 +124,7 @@ function navStyle(selected: boolean) {
       <template v-if="queuesExpanded">
         <div
           v-for="q in queues" :key="q.id"
-          @click="selectedQueue = q.id"
+          @click="selectedQueue = q.id; store.setActiveFilter('all'); store.setCategoryFilter('all'); store.setQueueFilter(q.id)"
           @mouseenter="hoveredQueue = q.id"
           @mouseleave="hoveredQueue = null"
           :class="['flex items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors', selectedQueue === q.id ? '' : 'hover-bg']"
@@ -153,6 +161,7 @@ function navStyle(selected: boolean) {
             <component :is="categoriesExpanded ? ChevronDown : ChevronRight" class="h-3 w-3" />
             <span class="text-2xs font-semibold uppercase tracking-wider" style="letter-spacing: 0.5px;">分类</span>
           </div>
+          <button @click.stop="showCategoryManager = true" class="rounded p-0.5 transition-colors"><SlidersHorizontal class="h-3 w-3" /></button>
         </div>
       </div>
       <template v-if="categoriesExpanded">
@@ -170,4 +179,5 @@ function navStyle(selected: boolean) {
     </nav>
   </aside>
   <QueueManagerDialog v-if="showQueueManager" @close="showQueueManager = false" />
+  <CategoryManagerDialog v-if="showCategoryManager" @close="showCategoryManager = false" />
 </template>

@@ -1,18 +1,25 @@
+mod api_server;
 mod commands;
 mod settings;
 mod sink;
 
+use std::sync::Arc;
 use tokio::sync::Mutex;
 use ns_download_engine::Engine;
+#[cfg(not(mobile))]
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+#[cfg(not(mobile))]
 use tauri::menu::{Menu, MenuItem};
+#[cfg(not(mobile))]
 use tauri::image::Image;
 use tauri::Manager;
 
 pub struct AppState {
-    pub engine: Mutex<Option<Engine>>,
+    pub engine: Arc<Mutex<Option<Engine>>>,
+    pub api_server_shutdown: Mutex<Option<tokio::sync::mpsc::Sender<crate::api_server::ServerCommand>>>,
 }
 
+#[cfg(not(mobile))]
 fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let icon_bytes = include_bytes!("../icons/tray-icon.png");
     let icon = Image::from_bytes(icon_bytes)?;
@@ -61,17 +68,22 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 pub fn run() {
     tracing_subscriber::fmt().with_env_filter("info").init();
 
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_autostart::init(
-            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            None,
-        ))
+        .plugin(tauri_plugin_process::init());
+
+    #[cfg(not(mobile))]
+    let builder = builder.plugin(tauri_plugin_autostart::init(
+        tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+        None,
+    ));
+
+    builder
         .manage(AppState {
-            engine: Mutex::new(None),
+            engine: Arc::new(Mutex::new(None)),
+            api_server_shutdown: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
             commands::init_engine,
@@ -90,12 +102,15 @@ pub fn run() {
             commands::stop_api_server,
             commands::set_task_priority,
             commands::move_task_to_queue,
+            commands::set_task_segments,
+            commands::probe_torrent_file,
             commands::reveal_in_folder,
             commands::send_notification,
             commands::prevent_sleep,
             commands::shutdown_system,
         ])
         .setup(|app| {
+            #[cfg(not(mobile))]
             if let Err(e) = setup_tray(app) {
                 eprintln!("Failed to setup tray: {e}");
             }

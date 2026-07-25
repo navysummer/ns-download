@@ -1,0 +1,13 @@
+{
+  "identifier": "mobile",
+  "description": "Mobile-specific capabilities",
+  "windows": ["main"],
+  "platforms": ["iOS", "android"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "dialog:default",
+    "fs:default",
+    "process:default"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "identifier": "desktop",
+  "description": "Desktop-specific capabilities",
+  "windows": ["main"],
+  "platforms": ["macOS", "windows", "linux"],
+  "permissions": [
+    "core:default",
+    "shell:allow-open",
+    "dialog:default",
+    "fs:default",
+    "process:default",
+    "autostart:default"
+  ]
+}

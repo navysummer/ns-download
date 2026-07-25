@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { X, Plus, Trash2, Edit3, Check, Circle } from "lucide-vue-next";
+import { X, Plus, Trash2, Edit3, Check, Circle, Play, Pause } from "lucide-vue-next";
+import { useDownloadStore } from "../lib/store";
 
 const emit = defineEmits<{ close: [] }>();
+const store = useDownloadStore();
 
 interface QueueItem {
   id: string;
@@ -11,13 +13,27 @@ interface QueueItem {
   editing?: boolean;
 }
 
-const queues = ref<QueueItem[]>([
-  { id: 'default', label: '默认', running: true },
-  { id: 'later', label: '稍后下载', running: false },
-]);
-
+const queues = ref<QueueItem[]>([]);
 const newName = ref("");
 const editText = ref("");
+
+onMounted(() => {
+  syncFromStore();
+});
+
+function syncFromStore() {
+  queues.value = Object.entries(store.queueStates).map(([id, running]) => ({
+    id, label: id === 'default' ? '默认' : id === 'later' ? '稍后下载' : id, running,
+  }));
+}
+
+function syncToStore() {
+  const s: Record<string, boolean> = {};
+  for (const q of queues.value) {
+    s[q.id] = q.running;
+  }
+  store.queueStates = s;
+}
 
 function addQueue() {
   const name = newName.value.trim();
@@ -25,6 +41,7 @@ function addQueue() {
   const id = `queue_${Date.now()}`;
   queues.value.push({ id, label: name, running: true });
   newName.value = "";
+  syncToStore();
 }
 
 function startEdit(q: QueueItem) {
@@ -36,17 +53,20 @@ function saveEdit(q: QueueItem) {
   const name = editText.value.trim();
   if (name) q.label = name;
   q.editing = false;
+  syncToStore();
 }
 
 function removeQueue(id: string) {
   if (id === 'default') return;
   const idx = queues.value.findIndex(q => q.id === id);
   if (idx >= 0) queues.value.splice(idx, 1);
+  syncToStore();
 }
 
 function toggleRunning(id: string) {
   const q = queues.value.find(q => q.id === id);
   if (q) q.running = !q.running;
+  syncToStore();
 }
 </script>
 
@@ -83,7 +103,7 @@ function toggleRunning(id: string) {
             <span class="flex-1 text-sm" :style="{ color: '#F5F5F7' }">{{ q.label }}</span>
             <div class="flex gap-1">
               <button @click="toggleRunning(q.id)" class="rounded p-1 transition-colors" :style="{ color: '#8E8E93' }">
-                <component :is="q.running ? 'span' : 'span'" class="text-2xs">{{ q.running ? '暂停' : '启动' }}</component>
+                <component :is="q.running ? Pause : Play" class="h-3.5 w-3.5" />
               </button>
               <button v-if="q.id !== 'default'" @click="startEdit(q)" class="rounded p-1 transition-colors" :style="{ color: '#8E8E93' }">
                 <Edit3 class="h-3.5 w-3.5" />

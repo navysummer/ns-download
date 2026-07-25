@@ -28,6 +28,7 @@ export interface Task {
   segments: number;
   speed: number;
   upload_speed: number;
+  queue_id: string;
   priority?: boolean;
 }
 
@@ -102,6 +103,7 @@ export const useDownloadStore = defineStore("download", () => {
   const speedHistory = ref<number[]>([]);
   const sortField = ref<string>("");
   const sortOrder = ref<"asc" | "desc">("desc");
+  const queueFilter = ref<string>("");
 
   const settings = ref<Settings>({
     saveDir: "/Downloads",
@@ -218,6 +220,9 @@ export const useDownloadStore = defineStore("download", () => {
         t.id?.toLowerCase().includes(q)
       );
     }
+    if (queueFilter.value) {
+      result = result.filter(t => t.queue_id === queueFilter.value || (!t.queue_id && queueFilter.value === 'default'));
+    }
     if (categoryFilter.value && categoryFilter.value !== "all") {
       result = result.filter(t => getCategoryForTask(t) === categoryFilter.value);
     }
@@ -279,7 +284,20 @@ export const useDownloadStore = defineStore("download", () => {
     }
   }
 
-  async function addTask(spec: { url: string; save_dir: string; file_name?: string; segments?: number }) {
+  async function addTask(spec: {
+    url: string;
+    save_dir: string;
+    file_name?: string;
+    segments?: number;
+    torrent_file_bytes?: number[];
+    selected_file_indices?: number[];
+    proxy_url?: string;
+    user_agent?: string;
+    cookies?: string;
+    referrer?: string;
+    checksum?: string;
+    extra_headers?: Record<string, string>;
+  }) {
     try {
       await invoke("create_task", { spec });
       await loadTasks();
@@ -338,16 +356,17 @@ export const useDownloadStore = defineStore("download", () => {
     }
   }
 
-  function isPriorityTask(taskId: string): boolean {
-    return priorityTaskIds.value.has(taskId);
-  }
-
   async function moveTaskToQueue(taskId: string, queueId: string) {
     try {
       await invoke("move_task_to_queue", { taskId, queueId });
+      await loadTasks();
     } catch (e) {
-      console.error("Failed to move task:", e);
+      console.error("Failed to move task to queue:", e);
     }
+  }
+
+  function isPriorityTask(taskId: string): boolean {
+    return priorityTaskIds.value.has(taskId);
   }
 
   const queueStates = ref<Record<string, boolean>>({ default: true, later: false });
@@ -360,8 +379,12 @@ export const useDownloadStore = defineStore("download", () => {
 
   const queueTaskCounts = computed(() => {
     const counts: Record<string, number> = {};
+    for (const t of tasks.value) {
+      const qid = (t as any).queue_id || 'default';
+      counts[qid] = (counts[qid] || 0) + 1;
+    }
     for (const qid of Object.keys(queueStates.value)) {
-      counts[qid] = 0;
+      if (counts[qid] === undefined) counts[qid] = 0;
     }
     return counts;
   })
@@ -404,6 +427,10 @@ export const useDownloadStore = defineStore("download", () => {
 
   function setActiveFilter(id: string) {
     activeFilter.value = id;
+  }
+
+  function setQueueFilter(id: string) {
+    queueFilter.value = id;
   }
 
   const defaultCategories: CustomCategory[] = [
@@ -470,7 +497,11 @@ export const useDownloadStore = defineStore("download", () => {
       if (raw["proxy_no_list"] !== undefined) s.proxyNoList = raw["proxy_no_list"];
       if (raw["close_to_tray"] !== undefined) s.closeToTray = raw["close_to_tray"] === "true";
       if (raw["auto_startup"] !== undefined) s.autoStartup = raw["auto_startup"] === "true";
-      s.startMinimized = (raw["auto_startup"] === "true" && raw["close_to_tray"] === "true");
+      if (raw["start_minimized"] !== undefined) {
+        s.startMinimized = raw["start_minimized"] === "true";
+      } else {
+        s.startMinimized = (raw["auto_startup"] === "true" && raw["close_to_tray"] === "true");
+      }
       if (raw["notify_on_complete"] !== undefined) s.notifyOnComplete = raw["notify_on_complete"] !== "false";
       if (raw["use_server_time"] !== undefined) s.useServerTime = raw["use_server_time"] === "true";
       if (raw["bt_enable_dht"] !== undefined) s.btEnableDht = raw["bt_enable_dht"] === "true";
@@ -504,6 +535,12 @@ export const useDownloadStore = defineStore("download", () => {
       if (raw["reveal_file_cmd"] !== undefined) s.revealFileCmd = raw["reveal_file_cmd"];
       if (raw["torrent_associated"] !== undefined) s.torrentAssociated = raw["torrent_associated"] === "true";
       if (raw["keep_awake"] !== undefined) s.keepAwake = raw["keep_awake"] !== "false";
+      if (raw["local_server_mcp_enabled"] !== undefined) s.localServerMcpEnabled = raw["local_server_mcp_enabled"] === "true";
+      if (raw["conn_policy_count"] !== undefined) s.connPolicyCount = parseInt(raw["conn_policy_count"]) || 0;
+      if (raw["remember_last_save_dir"] !== undefined) s.rememberLastSaveDir = raw["remember_last_save_dir"] === "true";
+      if (raw["show_sidebar_status"] !== undefined) s.showSidebarStatus = raw["show_sidebar_status"] === "true";
+      if (raw["show_sidebar_queues"] !== undefined) s.showSidebarQueues = raw["show_sidebar_queues"] === "true";
+      if (raw["show_sidebar_category"] !== undefined) s.showSidebarCategory = raw["show_sidebar_category"] === "true";
     } catch (e) {
       console.error("Failed to load settings:", e);
     }
@@ -527,6 +564,7 @@ export const useDownloadStore = defineStore("download", () => {
       "proxy_password": s.proxyPassword,
       "proxy_no_list": s.proxyNoList,
       "close_to_tray": s.closeToTray ? "true" : "false",
+      "start_minimized": s.startMinimized ? "true" : "false",
       "auto_startup": s.autoStartup ? "true" : "false",
       "notify_on_complete": s.notifyOnComplete ? "true" : "false",
       "use_server_time": s.useServerTime ? "true" : "false",
@@ -619,6 +657,7 @@ export const useDownloadStore = defineStore("download", () => {
     loadSettings,
     saveSettings,
     saveSettingsDebounced,
+    settingsToMap,
     setTaskPriority,
     isPriorityTask,
     moveTaskToQueue,
@@ -631,6 +670,8 @@ export const useDownloadStore = defineStore("download", () => {
     shutdownSystem,
     setCategoryFilter,
     setActiveFilter,
+    queueFilter,
+    setQueueFilter,
     sortField,
     sortOrder,
     setSort,

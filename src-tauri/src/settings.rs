@@ -80,6 +80,12 @@ async fn apply_config(engine: &mut Engine, key: &str, value: &str) {
         | "bt_custom_trackers" | "bt_tracker_sub_urls" | "bt_tracker_sub_cache" => {
             apply_bt_config(engine, key, value).await;
         }
+        "ed2k_server_list" | "ed2k_server_sub_enabled" | "ed2k_server_sub_urls"
+        | "ed2k_server_sub_cache" | "ed2k_server_sub_updated_at"
+        | "ed2k_listen_port" | "ed2k_enable_upnp" | "ed2k_enable_kad"
+        | "ed2k_nodes_dat_url" | "ed2k_nodes_dat_cache" | "ed2k_nodes_dat_updated_at" => {
+            apply_ed2k_config(engine, key, value).await;
+        }
         _ => {}
     }
 }
@@ -127,7 +133,7 @@ async fn apply_proxy_config(engine: &mut Engine, _changed_key: &str, _changed_va
 }
 
 /// Apply BT config (reads all BT keys from DB).
-async fn apply_bt_config(engine: &mut Engine, _changed_key: &str, _changed_value: &str) {
+pub(crate) async fn apply_bt_config(engine: &mut Engine, _changed_key: &str, _changed_value: &str) {
     let enable_dht = engine.db.get_config("bt_enable_dht").await
         .ok().flatten().map(|v| v == "true").unwrap_or(true);
     let enable_upnp = engine.db.get_config("bt_enable_upnp").await
@@ -150,6 +156,13 @@ async fn apply_bt_config(engine: &mut Engine, _changed_key: &str, _changed_value
         subscription_trackers: sub_trackers,
     };
     engine.manager.set_bt_config(config);
+}
+
+/// Apply ED2K config (reads all ED2K keys from DB).
+async fn apply_ed2k_config(engine: &mut Engine, _changed_key: &str, _changed_value: &str) {
+    // ED2K settings are read from DB at download time by the ED2K downloader.
+    // No runtime config struct to update; the values are already persisted to DB.
+    let _ = engine;
 }
 
 /// Apply all settings from DB to the engine at startup.

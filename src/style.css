@@ -30,10 +30,10 @@
   background: #636366;
 }
 
-/* Hover utilities for FluxDown dark theme */
+/* Hover utilities for dark theme */
 .hover-bg:hover { background-color: #424245 !important; }
 .hover-bg-surface2:hover { background-color: #3A3A3C !important; }
+.hover-text:hover { color: #F5F5F7 !important; }
 .hover-text-secondary:hover { color: #A1A1A6 !important; }
-.hover-bg-surface2:hover { background-color: #3A3A3C !important; }
 .bg-selected { background-color: #3A3A3C !important; }
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
 import { useDownloadStore } from "../lib/store";
-import { Play, Pause, Music, Film, File, Trash2, FolderOpen, Copy, ArrowUp, SlidersHorizontal, Star, ArrowUpDown, ArrowUpWideNarrow, ArrowDownWideNarrow } from "lucide-vue-next";
+import { Play, Pause, Music, Film, File, Trash2, FolderOpen, Copy, ArrowUp, SlidersHorizontal, Star, ArrowUpDown, ArrowUpWideNarrow, ArrowDownWideNarrow, List } from "lucide-vue-next";
 import EditThreadsDialog from "./EditThreadsDialog.vue";
 
 const props = defineProps<{
@@ -24,6 +24,7 @@ const store = useDownloadStore();
 const selectedId = ref<string | null>(null);
 const contextMenu = ref({ show: false, x: 0, y: 0, task: null as any | null });
 const showEditThreads = ref(false);
+const showQueueSubmenu = ref(false);
 
 function closeContextMenu() {
   contextMenu.value.show = false;
@@ -257,6 +258,43 @@ function extBadge(name: string): string {
         <SlidersHorizontal class="h-3.5 w-3.5" /> 编辑线程数
       </button>
       <div :style="{ borderBottom: '1px solid #3A3A3C', margin: '4px 8px' }"></div>
+      <div class="relative">
+        <button
+          @click="showQueueSubmenu = !showQueueSubmenu"
+          class="flex w-full items-center gap-2 rounded px-3 py-1.5 text-sm transition-colors"
+          :style="{ color: '#F5F5F7' }"
+          @mouseenter="$event.target.style.backgroundColor='#3A3A3C'"
+          @mouseleave="$event.target.style.backgroundColor='transparent'"
+        >
+          <List class="h-3.5 w-3.5" /> 移动到队列 <span class="ml-auto" :style="{ color: '#8E8E93' }">▸</span>
+        </button>
+        <!-- Queue submenu -->
+        <div v-if="showQueueSubmenu"
+          :style="{
+            position: 'absolute',
+            left: '100%',
+            top: '0',
+            zIndex: 10000,
+            backgroundColor: '#2C2C2E',
+            border: '1px solid #48484A',
+            borderRadius: '8px',
+            padding: '4px',
+            minWidth: '140px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+          }"
+        >
+          <button
+            v-for="(_, qid) in store.queueStates" :key="qid"
+            @click="store.moveTaskToQueue(contextMenu.task.id, qid); showQueueSubmenu = false; closeContextMenu()"
+            class="flex w-full items-center gap-2 rounded px-3 py-1.5 text-sm transition-colors"
+            :style="{ color: '#F5F5F7' }"
+            @mouseenter="$event.target.style.backgroundColor='#3A3A3C'"
+            @mouseleave="$event.target.style.backgroundColor='transparent'"
+          >
+            {{ qid }}
+          </button>
+        </div>
+      </div>
       <button
         @click="navigator.clipboard.writeText(contextMenu.task.url); closeContextMenu()"
         class="flex w-full items-center gap-2 rounded px-3 py-1.5 text-sm transition-colors"

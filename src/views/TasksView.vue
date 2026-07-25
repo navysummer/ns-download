@@ -5,12 +5,31 @@ import { useDownloadStore } from "../lib/store";
 import TaskList from "../components/TaskList.vue";
 import NewDownloadDialog from "../components/NewDownloadDialog.vue";
 import TaskDetailPanel from "../components/TaskDetailPanel.vue";
-import { Plus, Play, Pause, Trash2, CheckSquare } from "lucide-vue-next";
+import { invoke } from "@tauri-apps/api/core";
+import { Plus, Play, Pause, Trash2, CheckSquare, SlidersHorizontal } from "lucide-vue-next";
 
 const store = useDownloadStore();
 const route = useRoute();
 const showNewDialog = ref(false);
 const droppedUrl = ref("");
+const showConfirmDelete = ref(false);
+const showBatchThreads = ref(false);
+const batchThreadsValue = ref(4);
+const batchQueueId = ref("");
+
+function batchMoveToQueue() {
+  if (!batchQueueId.value) return;
+  selectedIds.value.forEach(id => store.moveTaskToQueue(id, batchQueueId.value));
+  batchQueueId.value = "";
+}
+
+function applyBatchThreads() {
+  const count = Math.max(1, Math.min(128, batchThreadsValue.value));
+  selectedIds.value.forEach(id => {
+    invoke("set_task_segments", { taskId: id, segments: count }).catch(console.error);
+  });
+  showBatchThreads.value = false;
+}
 const manageMode = ref(false);
 const selectedIds = ref<Set<string>>(new Set());
 const selectedTask = ref<any | null>(null);
@@ -63,17 +82,29 @@ function onDragOver(e: DragEvent) {
 onMounted(() => {
   window.addEventListener('batch-delete', onBatchDelete);
   window.addEventListener('batch-toggle', onBatchToggle);
+  window.addEventListener('open-new-download', onOpenNewDownload);
 });
 
 onUnmounted(() => {
   window.removeEventListener('batch-delete', onBatchDelete);
   window.removeEventListener('batch-toggle', onBatchToggle);
+  window.removeEventListener('open-new-download', onOpenNewDownload);
 });
+
+function onOpenNewDownload() {
+  showNewDialog.value = true;
+  droppedUrl.value = '';
+}
 
 function onBatchDelete() {
   if (manageMode.value && selectedIds.value.size > 0) {
-    batchRemove();
+    showConfirmDelete.value = true;
   }
+}
+
+function confirmBatchDelete() {
+  batchRemove();
+  showConfirmDelete.value = false;
 }
 
 function onBatchToggle() {
@@ -132,7 +163,7 @@ function formatEta(task: any): string {
         {{ tab.label }} ({{ tab.count }})
       </button>
       <div class="flex-1" />
-      <button :class="['rounded p-1.5 transition-colors', manageMode ? 'bg-blue-500/20 text-blue-500' : '']"
+      <button data-manage-mode :class="['rounded p-1.5 transition-colors', manageMode ? 'bg-blue-500/20 text-blue-500' : '']"
         :style="{ color: manageMode ? '#3B82F6' : '#8E8E93' }"
         @click="manageMode = !manageMode; if (!manageMode) selectedIds = new Set()">
         <CheckSquare class="h-4 w-4" />
@@ -161,8 +192,29 @@ function formatEta(task: any): string {
         :style="{ color: '#22C55E' }"><Play class="h-3 w-3 inline" /> 恢复</button>
       <button @click="batchPause" class="rounded px-2 py-1 text-xs transition-colors"
         :style="{ color: '#F59E0B' }"><Pause class="h-3 w-3 inline" /> 暂停</button>
-      <button @click="batchRemove" class="rounded px-2 py-1 text-xs transition-colors"
+      <button @click="showConfirmDelete = true" class="rounded px-2 py-1 text-xs transition-colors"
         :style="{ color: '#EF4444' }"><Trash2 class="h-3 w-3 inline" /> 删除</button>
+      <div v-if="showBatchThreads" class="flex items-center gap-1">
+        <input v-model.number="batchThreadsValue" type="number" min="1" max="128"
+          class="w-14 rounded px-1.5 py-0.5 text-xs outline-none tabular-nums"
+          :style="{ backgroundColor: '#1C1C1E', border: '1px solid #48484A', color: '#F5F5F7' }"
+          @keydown.enter="applyBatchThreads"
+        />
+        <button @click="applyBatchThreads" class="rounded px-1.5 py-0.5 text-2xs transition-colors"
+          :style="{ backgroundColor: '#3B82F6', color: '#fff' }">应用</button>
+        <button @click="showBatchThreads = false" class="rounded px-1 py-0.5 text-2xs transition-colors"
+          :style="{ color: '#8E8E93' }">取消</button>
+      </div>
+      <button v-else @click="showBatchThreads = true" class="rounded px-2 py-1 text-xs transition-colors"
+        :style="{ color: '#A1A1A6' }"><SlidersHorizontal class="h-3 w-3 inline" /> 线程</button>
+      <select v-if="Object.keys(store.queueStates).length > 0" v-model="batchQueueId"
+        class="rounded-md px-2 py-1 text-xs outline-none"
+        :style="{ backgroundColor: '#1C1C1E', border: '1px solid #48484A', color: '#A1A1A6' }"
+        @change="batchMoveToQueue"
+      >
+        <option value="">移动到队列...</option>
+        <option v-for="(_, qid) in store.queueStates" :key="qid" :value="qid">{{ qid }}</option>
+      </select>
     </div>
 
     <TaskList
@@ -187,5 +239,29 @@ function formatEta(task: any): string {
     />
 
     <NewDownloadDialog v-if="showNewDialog" :initial-url="droppedUrl" @close="showNewDialog = false; droppedUrl = ''" />
+
+    <!-- Batch delete confirmation -->
+    <div v-if="showConfirmDelete"
+      class="fixed inset-0 z-50 flex items-center justify-center"
+      :style="{ backgroundColor: 'rgba(0,0,0,0.4)' }"
+      @click.self="showConfirmDelete = false"
+    >
+      <div class="w-80 rounded-xl p-5 shadow-2xl" :style="{ backgroundColor: '#2C2C2E', border: '1px solid #48484A' }">
+        <h3 class="text-sm font-semibold mb-2" :style="{ color: '#F5F5F7' }">确认删除</h3>
+        <p class="text-sm mb-4" :style="{ color: '#A1A1A6' }">确定要删除选中的 {{ selectedIds.size }} 个任务吗？此操作不可撤销。</p>
+        <div class="flex justify-end gap-2">
+          <button @click="showConfirmDelete = false" class="rounded-md px-4 py-1.5 text-xs transition-colors"
+            :style="{ color: '#A1A1A6' }"
+            @mouseenter="$event.target.style.backgroundColor='#3A3A3C'"
+            @mouseleave="$event.target.style.backgroundColor='transparent'"
+          >取消</button>
+          <button @click="confirmBatchDelete" class="rounded-md px-4 py-1.5 text-xs transition-colors"
+            :style="{ backgroundColor: '#EF4444', color: '#fff' }"
+            @mouseenter="$event.target.style.opacity='0.9'"
+            @mouseleave="$event.target.style.opacity='1'"
+          >删除</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

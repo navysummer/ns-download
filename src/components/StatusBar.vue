@@ -2,12 +2,14 @@
 import { ref, computed } from "vue";
 import { useDownloadStore } from "../lib/store";
 import { ArrowDown, Circle, Gauge, Power, MessageSquarePlus } from "lucide-vue-next";
+import FeedbackDialog from "./FeedbackDialog.vue";
 
 const store = useDownloadStore();
 const showSpeedPopover = ref(false);
 const showShutdownPopover = ref(false);
 const customSpeed = ref("");
 const shutdownMinutes = ref("5");
+const showFeedbackDialog = ref(false);
 
 const activeCount = computed(() => store.tasks.filter(t => t.status === 1).length);
 const totalCount = computed(() => store.tasks.length);
@@ -201,11 +203,11 @@ const shutdownPresets = [
       <div :style="{ width: '1px', height: '12px', backgroundColor: '#48484A' }"></div>
 
       <!-- Feedback -->
-      <button class="hover-bg-surface2 flex items-center gap-1 rounded px-1 py-0.5 transition-colors"
-      >
+      <button @click="showFeedbackDialog = true" class="hover-bg-surface2 flex items-center gap-1 rounded px-1 py-0.5 transition-colors">
         <MessageSquarePlus class="h-2.5 w-2.5" />
         <span>反馈</span>
       </button>
     </div>
   </footer>
+  <FeedbackDialog v-if="showFeedbackDialog" @close="showFeedbackDialog = false" />
 </template>

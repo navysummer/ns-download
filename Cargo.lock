@@ -3445,6 +3445,7 @@ dependencies = [
 name = "ns_download_app"
 version = "0.1.0"
 dependencies = [
+ "axum",
  "dirs 6.0.0",
  "ns_download_engine",
  "reqwest 0.12.28",

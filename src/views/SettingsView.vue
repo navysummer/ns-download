@@ -9,7 +9,7 @@ import {
   Settings, Palette, Download, Globe, Server, Info, Puzzle,
   FolderOpen, PanelLeft, PanelTop, BellOff,
   Languages, SunMoon, Monitor, Sun, Moon, Maximize, RefreshCw, FileText, Shield,
-  ChevronUp, ChevronDown, Eye, EyeOff, Trash2, Unplug, Key, List, Zap, Magnet, Network,
+  ChevronUp, ChevronDown, Eye, EyeOff, Trash2, Unplug, Key, List, Zap, Magnet, Network, Settings as SettingsIcon,
 } from "lucide-vue-next";
 
 const Divider = defineComponent({
@@ -178,14 +178,14 @@ async function detectExtension(name: string) {
 
 // Update check
 const updateChecking = ref(false);
-const updateInfo = ref<{ has_update: boolean; latest_version: string; download_url: string; error_message: string } | null>(null);
+const updateInfo = ref<{ has_update: boolean; latest_version: string; download_url: string; body: string; error_message: string } | null>(null);
 async function checkUpdate() {
   updateChecking.value = true;
   updateInfo.value = null;
   try {
     updateInfo.value = await invoke("check_update", { currentVersion: "v0.1.0" });
   } catch (e) {
-    updateInfo.value = { has_update: false, latest_version: "", download_url: "", error_message: String(e) };
+    updateInfo.value = { has_update: false, latest_version: "", download_url: "", body: "", error_message: String(e) };
   }
   updateChecking.value = false;
 }
@@ -201,6 +201,70 @@ async function exportLogs() {
     console.error("Failed to export logs:", e);
   }
 }
+
+// Settings import/export
+async function exportSettings() {
+  try {
+    const dest = await save({ title: "导出配置", defaultPath: "ns-download-settings.json" });
+    if (dest) {
+      const settings = store.settingsToMap();
+      const json = JSON.stringify(settings, null, 2);
+      const { writeTextFile } = await import("@tauri-apps/plugin-fs");
+      await writeTextFile(dest, json);
+    }
+  } catch (e) {
+    console.error("Failed to export settings:", e);
+  }
+}
+
+async function importSettings() {
+  try {
+    const selected = await open({
+      multiple: false,
+      filters: [{ name: 'Settings JSON', extensions: ['json'] }],
+    });
+    if (selected) {
+      const { readTextFile } = await import("@tauri-apps/plugin-fs");
+      const text = await readTextFile(selected as string);
+      const parsed = JSON.parse(text);
+      // Apply to store and save
+      for (const [key, value] of Object.entries(parsed)) {
+        if (typeof value === 'string') {
+          const setter = settingsKeyMap[key as keyof typeof settingsKeyMap];
+          if (setter) setter(value);
+        }
+      }
+      await store.saveSettings();
+      // Reload settings to show imported values
+      await store.loadSettings();
+    }
+  } catch (e) {
+    console.error("Failed to import settings:", e);
+  }
+}
+
+// Helper map for settings keys
+const settingsKeyMap: Record<string, (v: string) => void> = {
+  "default_save_dir": (v) => store.settings.saveDir = v,
+  "max_concurrent_tasks": (v) => store.settings.maxConcurrent = parseInt(v) || 5,
+  "speed_limit_bytes": (v) => store.settings.speedLimit = parseInt(v) || 0,
+  "default_segments": (v) => store.settings.defaultThreads = parseInt(v) || 0,
+  "auto_max_connections": (v) => store.settings.autoMaxConnections = parseInt(v) || 16,
+  "global_user_agent": (v) => store.settings.userAgent = v,
+  "max_auto_retries": (v) => store.settings.retryCount = parseInt(v) ?? 3,
+  "auto_retry_delay_secs": (v) => store.settings.retryDelay = parseInt(v) || 5,
+  "proxy_mode": (v) => store.settings.proxyType = v,
+  "proxy_host": (v) => store.settings.proxyHost = v,
+  "proxy_port": (v) => store.settings.proxyPort = parseInt(v) || 1080,
+  "proxy_username": (v) => store.settings.proxyUsername = v,
+  "proxy_password": (v) => store.settings.proxyPassword = v,
+  "proxy_no_list": (v) => store.settings.proxyNoList = v,
+  "close_to_tray": (v) => store.settings.closeToTray = v === "true",
+  "start_minimized": (v) => store.settings.startMinimized = v === "true",
+  "auto_startup": (v) => store.settings.autoStartup = v === "true",
+  "notify_on_complete": (v) => store.settings.notifyOnComplete = v !== "false",
+  "keep_awake": (v) => store.settings.keepAwake = v !== "false",
+};
 
 function confirmAddCategory() {
   const name = newCategoryName.value.trim();
@@ -252,6 +316,7 @@ const donatePanning = ref(false);
 const donatePanStartX = ref(0);
 const donatePanStartY = ref(0);
 const showDonate = ref(false);
+const showChangelog = ref(false);
 
 function donateZoomIn() { donateZoom.value = Math.min(donateZoom.value * 1.25, 10); }
 function donateZoomOut() { donateZoom.value = Math.max(donateZoom.value / 1.25, 0.25); }
@@ -273,6 +338,9 @@ function onDonatePan(e: MouseEvent) {
 function onDonatePanEnd() { donatePanning.value = false; }
 
 const proxyTesting = ref(false);
+const proxyTestResult = ref<boolean | null>(null);
+const proxyTestLatency = ref(0);
+const proxyTestError = ref("");
 
 async function testProxy() {
   const host = store.settings.proxyHost;
@@ -282,7 +350,7 @@ async function testProxy() {
   proxyTestResult.value = null;
   try {
     const result = await invoke<{ success: boolean; latency_ms: number; error_message: string }>("test_proxy", {
-      proxyType: store.settings.proxyType,
+      proxyType: proxyProtocol.value || store.settings.proxyType,
       proxyHost: host,
       proxyPort: port,
       proxyUsername: store.settings.proxyUsername,
@@ -814,7 +882,7 @@ async function testProxy() {
                 <p class="text-xs" style="color: #8E8E93;">指定 FFmpeg 可执行文件的路径</p>
                 <div class="flex gap-2">
                   <input v-model="store.settings.ffmpegPath" type="text" placeholder="/usr/local/bin/ffmpeg" class="flex-1 h-9 rounded-md px-3 text-sm outline-none transition-colors" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #F5F5F7;" />
-                  <button class="h-9 px-3 rounded-md text-xs font-medium transition-colors" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #A1A1A6;">保存</button>
+                  <button @click="store.saveSettingsDebounced()" class="h-9 px-3 rounded-md text-xs font-medium transition-colors" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #A1A1A6;">保存</button>
                 </div>
               </div>
             </section>
@@ -838,7 +906,7 @@ async function testProxy() {
                 <p class="text-xs" style="color: #8E8E93;">指定 yt-dlp 可执行文件的路径</p>
                 <div class="flex gap-2">
                   <input v-model="store.settings.ytdlpPath" type="text" placeholder="/usr/local/bin/yt-dlp" class="flex-1 h-9 rounded-md px-3 text-sm outline-none transition-colors" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #F5F5F7;" />
-                  <button class="h-9 px-3 rounded-md text-xs font-medium transition-colors" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #A1A1A6;">保存</button>
+                  <button @click="store.saveSettingsDebounced()" class="h-9 px-3 rounded-md text-xs font-medium transition-colors" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #A1A1A6;">保存</button>
                 </div>
               </div>
             </section>
@@ -1020,6 +1088,7 @@ async function testProxy() {
                   <template v-if="updateInfo.error_message">检查失败: {{ updateInfo.error_message }}</template>
                   <template v-else-if="updateInfo.has_update">
                     发现新版本 <a :href="updateInfo.download_url" target="_blank" style="color: #60A5FA;">{{ updateInfo.latest_version }}</a>
+                    <button v-if="updateInfo.body" @click="showChangelog = true" class="ml-2 underline underline-offset-2" style="color: #60A5FA;">查看更新内容</button>
                   </template>
                   <template v-else>已是最新版本</template>
                 </div>
@@ -1033,6 +1102,16 @@ async function testProxy() {
               <div class="px-4 py-3 space-y-3">
                 <p class="text-xs" style="color: #8E8E93;">导出应用日志以排查问题</p>
                 <button @click="exportLogs" class="h-8 px-4 rounded-md text-xs font-medium transition-colors" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #A1A1A6;">导出日志</button>
+              </div>
+            </section>
+          </div>
+
+          <div class="space-y-2">
+            <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide pl-0.5" style="color: #A1A1A6;"><SettingsIcon class="w-3 h-3" /> 配置管理</h2>
+            <section class="rounded-xl" style="background-color: #2C2C2E; border: 1px solid #48484A;">
+              <div class="px-4 py-3 flex gap-2">
+                <button @click="exportSettings" class="h-8 px-4 rounded-md text-xs font-medium transition-colors" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #A1A1A6;">导出配置</button>
+                <button @click="importSettings" class="h-8 px-4 rounded-md text-xs font-medium transition-colors" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #A1A1A6;">导入配置</button>
               </div>
             </section>
           </div>
@@ -1063,6 +1142,24 @@ async function testProxy() {
                   <span class="text-xs" style="color: #8E8E93;">{{ Math.round(donateZoom * 100) }}%</span>
                   <button @click="donateZoomOut" class="w-7 h-7 rounded flex items-center justify-center text-xs transition-colors" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #F5F5F7;" >−</button>
                   <button @click="donateZoomReset" class="w-7 h-7 rounded flex items-center justify-center text-xs transition-colors" style="background-color: #1C1C1E; border: 1px solid #48484A; color: #A1A1A6;">原图</button>
+                </div>
+              </div>
+            </div>
+          </Teleport>
+
+          <!-- Changelog dialog -->
+          <Teleport to="body">
+            <div v-if="showChangelog && updateInfo" @click.self="showChangelog = false" class="fixed inset-0 z-50 flex items-center justify-center" style="background-color: rgba(0,0,0,0.6);">
+              <div class="rounded-2xl overflow-hidden shadow-2xl" style="background-color: #2C2C2E; border: 1px solid #48484A; width: 480px; max-height: 70vh;">
+                <div class="flex items-center justify-between px-4 py-3" style="border-bottom: 1px solid #48484A;">
+                  <span class="text-sm font-semibold" style="color: #F5F5F7;">{{ updateInfo.latest_version }} 更新内容</span>
+                  <button @click="showChangelog = false" class="w-7 h-7 rounded flex items-center justify-center text-sm transition-colors" style="color: #8E8E93;">✕</button>
+                </div>
+                <div class="overflow-y-auto p-4 text-xs leading-relaxed whitespace-pre-wrap" style="color: #A1A1A6; max-height: calc(70vh - 52px);">{{ updateInfo.body }}</div>
+                <div class="flex justify-end px-4 py-3" style="border-top: 1px solid #48484A;">
+                  <a :href="updateInfo.download_url" target="_blank"
+                    class="rounded-md px-4 py-1.5 text-xs font-medium transition-colors"
+                    style="background-color: #3B82F6; color: #fff;">前往下载</a>
                 </div>
               </div>
             </div>

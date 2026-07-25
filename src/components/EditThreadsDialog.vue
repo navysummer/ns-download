@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { X } from "lucide-vue-next";
+import { invoke } from "@tauri-apps/api/core";
 
 const props = defineProps<{ task: any }>();
 const emit = defineEmits<{ close: [] }>();
 
 const threadCount = ref(props.task.segments || 1);
+const saving = ref(false);
 
-function submit() {
-  // The engine doesn't support per-task segment changes at runtime yet
-  // For now, we log the intent - engine API would be called here
-  console.log("Set threads:", props.task.id, threadCount.value);
+async function submit() {
+  saving.value = true;
+  try {
+    await invoke("set_task_segments", { taskId: props.task.id, segments: Math.max(1, Math.min(128, threadCount.value)) });
+  } catch (e) {
+    console.error("Failed to set segments:", e);
+  }
+  saving.value = false;
   emit("close");
 }
 </script>

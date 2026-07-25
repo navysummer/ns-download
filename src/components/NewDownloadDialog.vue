@@ -4,6 +4,8 @@ import { useDownloadStore } from "../lib/store";
 import { X, Download, FolderOpen, Clock, FileDown, FileText, ChevronDown, Plus, CircleAlert } from "lucide-vue-next";
 import { downloadDir } from "@tauri-apps/api/path";
 import { open } from "@tauri-apps/plugin-dialog";
+import { invoke } from "@tauri-apps/api/core";
+import TorrentFilePickerDialog from "./TorrentFilePickerDialog.vue";
 
 const props = defineProps<{ initialUrl?: string }>();
 const emit = defineEmits<{ close: [] }>();
@@ -13,6 +15,8 @@ const url = ref(props.initialUrl || "");
 const saveDir = ref("");
 const rename = ref("");
 const torrentFile = ref("");
+const showTorrentPicker = ref(false);
+const torrentMeta = ref<any>(null);
 
 async function pickTorrent() {
   const selected = await open({
@@ -20,10 +24,36 @@ async function pickTorrent() {
     filters: [{ name: 'Torrent', extensions: ['torrent'] }],
   });
   if (selected) {
-    torrentFile.value = selected as string;
-    url.value = selected as string;
+    const path = selected as string;
+    torrentFile.value = path;
+    try {
+      const { readFile } = await import("@tauri-apps/plugin-fs");
+      const bytes = await readFile(path);
+      const meta = await invoke("probe_torrent_file", { torrentBytes: Array.from(bytes) });
+      torrentMeta.value = meta;
+      showTorrentPicker.value = true;
+    } catch (e) {
+      console.error("Failed to probe torrent:", e);
+    }
   }
 }
+
+function onTorrentFilesSelected(indices: number[]) {
+  showTorrentPicker.value = false;
+  // Set URL to the torrent file path, and prepare to create with torrent bytes
+  url.value = torrentFile.value;
+  selectedFileIndices.value = indices;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+const selectedFileIndices = ref<number[]>([]);
 
 async function pickTxt() {
   const selected = await open({
@@ -87,13 +117,31 @@ async function pickSaveDir() {
 async function submit(later = false) {
   if (!url.value.trim()) return;
   const entries = url.value.trim().split('\n').filter(l => l.trim() && !l.trim().startsWith('#'));
+  const headers: Record<string, string> = {};
+  for (const h of headerRows) {
+    if (h.key.trim()) headers[h.key.trim()] = h.value;
+  }
   for (const entry of entries) {
-    await store.addTask({
+    const spec: any = {
       url: entry.trim(),
       save_dir: saveDir.value,
       file_name: rename.value || undefined,
       segments: parseInt(segments.value) || 0,
-    });
+    };
+    // Torrent-specific fields
+    if (torrentMeta.value && selectedFileIndices.value.length > 0) {
+      const { readFile } = await import("@tauri-apps/plugin-fs");
+      const bytes = await readFile(torrentFile.value);
+      spec.torrent_file_bytes = Array.from(bytes);
+      spec.selected_file_indices = selectedFileIndices.value;
+    }
+    // Advanced fields
+    if (proxyUrl.value.trim()) spec.proxy_url = proxyUrl.value.trim();
+    if (userAgent.value.trim()) spec.user_agent = userAgent.value.trim();
+    if (cookie.value.trim()) spec.cookies = cookie.value.trim();
+    if (checksum.value.trim()) spec.checksum = checksumAlgo.value + '=' + checksum.value.trim();
+    if (Object.keys(headers).length > 0) spec.extra_headers = headers;
+    await store.addTask(spec);
   }
   emit("close");
 }
@@ -271,4 +319,12 @@ function removeHeader(index: number) {
       </div>
     </div>
   </div>
+
+  <TorrentFilePickerDialog
+    v-if="showTorrentPicker && torrentMeta"
+    :meta="torrentMeta"
+    :format-bytes="formatBytes"
+    @close="showTorrentPicker = false"
+    @confirm="onTorrentFilesSelected"
+  />
 </template>

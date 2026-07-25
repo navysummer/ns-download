@@ -35,6 +35,7 @@ pub struct TaskResponsePayload {
     pub created_at: String,
     pub completed_at: String,
     pub segments: i32,
+    pub queue_id: String,
 }
 
 impl From<TaskInfo> for TaskResponsePayload {
@@ -51,6 +52,7 @@ impl From<TaskInfo> for TaskResponsePayload {
             created_at: t.created_at,
             completed_at: t.completed_at,
             segments: t.segments,
+            queue_id: t.queue_id,
         }
     }
 }

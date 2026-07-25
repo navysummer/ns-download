@@ -7,6 +7,7 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 import { LogicalSize, LogicalPosition } from "@tauri-apps/api/dpi";
 import Sidebar from "./components/Sidebar.vue";
 import StatusBar from "./components/StatusBar.vue";
+import KeyboardShortcutsDialog from "./components/KeyboardShortcutsDialog.vue";
 import { Search, Settings } from "lucide-vue-next";
 import { useDownloadStore } from "./lib/store";
 
@@ -35,6 +36,7 @@ interface TaskItem {
   created_at: string;
   completed_at: string;
   segments: number;
+  queue_id: string;
 }
 
 interface TasksSnapshotPayload {
@@ -44,6 +46,7 @@ interface TasksSnapshotPayload {
 const store = useDownloadStore();
 const router = useRouter();
 const searchFocused = ref(false);
+const showShortcuts = ref(false);
 
 let unlistens: UnlistenFn[] = [];
 
@@ -93,12 +96,90 @@ onMounted(async () => {
       }
     }));
 
+    unlistens.push(await listen("segment-progress", (event: any) => {
+      // Segment progress data available but not currently visualized in UI
+      console.debug("Segment progress:", event.payload);
+    }));
+
+    unlistens.push(await listen("task-meta-probed", (event: any) => {
+      const { task_id, file_name, total_bytes } = event.payload;
+      const task = store.tasks.find(t => t.id === task_id);
+      if (task) {
+        task.file_name = file_name || task.file_name;
+        if (total_bytes > 0) task.total_bytes = total_bytes;
+      }
+    }));
+
+    unlistens.push(await listen("bt-data-finished", (event: any) => {
+      console.debug("BT data finished:", event.payload.task_id);
+    }));
+
+    unlistens.push(await listen("queues-changed", (event: any) => {
+      const payload = event.payload;
+      if (Array.isArray(payload)) {
+        const states: Record<string, boolean> = {};
+        for (const q of payload) {
+          states[q.queue_id] = q.is_running;
+        }
+        if (Object.keys(states).length > 0) {
+          store.queueStates = states;
+        }
+      }
+    }));
+
+    unlistens.push(await listen("task-queue-changed", (event: any) => {
+      const { task_id, queue_id } = event.payload;
+      const task = store.tasks.find(t => t.id === task_id);
+      if (task) {
+        task.queue_id = queue_id;
+      }
+    }));
+
+    unlistens.push(await listen("priority-task-changed", (event: any) => {
+      const { priority_task_id, auto_paused_count } = event.payload;
+      if (priority_task_id) {
+        const s = new Set(store.priorityTaskIds);
+        s.add(priority_task_id);
+        store.priorityTaskIds = s;
+      }
+    }));
+
+    // Start API server if enabled
+    if (store.settings.localServerEnabled) {
+      try {
+        await invoke("start_api_server");
+      } catch (e) {
+        console.error("Failed to start API server:", e);
+      }
+    }
+
     // Keep awake while downloading
     watch(() => store.tasks.filter(t => t.status === 1).length, async (count) => {
       if (store.settings.keepAwake) {
         await store.preventSleep(count > 0);
       }
     });
+
+    // Apply theme
+    watch(() => [store.settings.theme, store.settings.accentColor], () => applyTheme(), { immediate: true });
+    function applyTheme() {
+      const root = document.documentElement;
+      const isLight = store.settings.theme === 'classic-light';
+      root.style.setProperty('--app-bg', isLight ? '#F5F5F7' : '#1C1C1E');
+      root.style.setProperty('--surface-bg', isLight ? '#FFFFFF' : '#2C2C2E');
+      root.style.setProperty('--surface-border', isLight ? '#E5E5EA' : '#48484A');
+      root.style.setProperty('--text-primary', isLight ? '#1C1C1E' : '#F5F5F7');
+      root.style.setProperty('--text-secondary', isLight ? '#8E8E93' : '#A1A1A6');
+      // Map accent color name to hex
+      const accentMap: Record<string, string> = {
+        blue: '#3B82F6', green: '#22C55E', orange: '#F97316',
+        purple: '#8B5CF6', pink: '#EC4899', red: '#EF4444',
+        teal: '#14B8A6', yellow: '#EAB308',
+        '#3B82F6': '#3B82F6', '#22C55E': '#22C55E', '#F97316': '#F97316',
+        '#06B6D4': '#06B6D4', '#8B5CF6': '#8B5CF6',
+      };
+      root.style.setProperty('--accent', accentMap[store.settings.accentColor] || '#3B82F6');
+    }
 
     // Window-level drag-and-drop
     document.addEventListener('dragover', onWindowDragOver);
@@ -136,6 +217,13 @@ onMounted(async () => {
       } catch (_) {}
     }, 2000);
     unlistens.push(() => clearInterval(saveInterval));
+
+    // Dock badge for active downloading count
+    watch(() => store.activeCount, async (count) => {
+      try {
+        await mainWindow.setBadgeCount(count);
+      } catch (_) {}
+    }, { immediate: true });
 
     // Close to tray
     unlistens.push(await mainWindow.onCloseRequested(async (event) => {
@@ -178,11 +266,26 @@ function onKeyDown(e: KeyboardEvent) {
     });
   }
 
-  // Escape: blur search
+  // Cmd+N / Ctrl+N: new download dialog
+  if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+    e.preventDefault();
+    window.dispatchEvent(new CustomEvent('open-new-download'));
+    return;
+  }
+
+  // Cmd+K / Ctrl+K: show keyboard shortcuts
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    showShortcuts.value = true;
+    return;
+  }
+
+  // Escape: blur search / close dialogs
   if (e.key === 'Escape') {
     if (isSearchFocused) {
       (document.activeElement as HTMLInputElement)?.blur();
     }
+    if (showShortcuts.value) showShortcuts.value = false;
     return;
   }
 
@@ -286,6 +389,8 @@ function onWindowDrop(e: DragEvent) {
       </div>
     </div>
     <StatusBar />
+
+    <KeyboardShortcutsDialog v-if="showShortcuts" @close="showShortcuts = false" />
 
     <!-- Drop overlay -->
     <div v-if="showDropOverlay"
