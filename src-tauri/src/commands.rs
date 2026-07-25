@@ -7,6 +7,7 @@ use ns_download_engine::bt_downloader::BtConfig;
 use ns_download_engine::proxy_config::ProxyConfig;
 use ns_download_engine::model::TaskInfo;
 use serde::{Deserialize, Serialize};
+use base64::Engine as _;
 use crate::AppState;
 use crate::settings;
 
@@ -737,12 +738,14 @@ async fn spawn_subscription_tasks(engine_ref: Arc<tokio::sync::Mutex<Option<Engi
         }
     });
 
-    // ED2K server subscription refresh
-    tokio::spawn(async move {
-        loop {
-            let (sub_urls, sub_enabled) = {
-                let guard = engine_ref.lock().await;
-                if let Some(ref eng) = *guard {
+     // ED2K server subscription refresh
+     tokio::spawn({
+         let engine_ref = engine_ref.clone();
+         async move {
+             loop {
+                 let (sub_urls, sub_enabled) = {
+                     let guard = engine_ref.lock().await;
+                     if let Some(ref eng) = *guard {
                     let urls = eng.db.get_config("ed2k_server_sub_urls").await
                         .ok().flatten().unwrap_or_else(ns_download_engine::ed2k::server_subscription::default_server_met_urls);
                     let enabled = eng.db.get_config("ed2k_server_sub_enabled").await
@@ -767,12 +770,63 @@ async fn spawn_subscription_tasks(engine_ref: Arc<tokio::sync::Mutex<Option<Engi
                 }
             }
 
-            tokio::time::sleep(Duration::from_secs(
-                ns_download_engine::ed2k::server_subscription::REFRESH_INTERVAL_SECS as u64
-            )).await;
-        }
-    });
-}
+                 tokio::time::sleep(Duration::from_secs(
+                     ns_download_engine::ed2k::server_subscription::REFRESH_INTERVAL_SECS as u64
+                 )).await;
+             }
+         }
+     });
+
+     // Kad nodes.dat auto-fetch (keep bootstrap contacts fresh so Kad
+     // can find sources even when all eD2K servers are empty/no seeders).
+     tokio::spawn({
+         let engine_ref = engine_ref.clone();
+         async move {
+             loop {
+                 // Read the nodes.dat URL each cycle (it may change via settings).
+                 let kad_url = {
+                     let guard = engine_ref.lock().await;
+                     match guard.as_ref() {
+                         Some(eng) => eng.db.get_config("ed2k_nodes_dat_url").await
+                             .ok().flatten()
+                             .unwrap_or_else(|| ns_download_engine::ed2k::kad::DEFAULT_NODES_DAT_URL.to_string()),
+                         None => break,
+                     }
+                 };
+
+                 // Respect Kad toggle each cycle.
+                 let kad_enabled = {
+                     let guard = engine_ref.lock().await;
+                     match guard.as_ref() {
+                         Some(eng) => eng.db.get_config("ed2k_enable_kad").await
+                             .ok().flatten().map(|v| v == "true").unwrap_or(true),
+                         None => break,
+                     }
+                 };
+
+                 if kad_enabled {
+                     tracing::info!("Refreshing Kad nodes.dat...");
+                     match ns_download_engine::ed2k::kad::fetch_nodes_dat(&kad_url).await {
+                         Ok(bytes) => {
+                             let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                             let mut guard = engine_ref.lock().await;
+                             if let Some(ref eng) = *guard {
+                                 let _ = eng.db.set_config("ed2k_nodes_dat_cache", &b64).await;
+                             }
+                         }
+                         Err(e) => {
+                             tracing::warn!("[ed2k-kad] nodes.dat fetch failed: {e}");
+                         }
+                     }
+                 }
+
+                 tokio::time::sleep(Duration::from_secs(
+                     ns_download_engine::ed2k::kad::FETCH_INTERVAL_SECS
+                 )).await;
+             }
+         }
+     });
+ }
 
 fn dirs_or_fallback() -> String {
     dirs::download_dir()

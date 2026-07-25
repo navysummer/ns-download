@@ -2584,7 +2584,12 @@ impl DownloadManager {
             url.clone()
         };
 
-        // 稍后下载以 paused(2) 落库；正常创建 pending(0)。
+        // ED2K 链接声明了文件大小，直接落库以便 UI 立即显示正确大小。
+        let db_total_bytes = if crate::ed2k::link::is_ed2k_url(&url) {
+            hint_file_size.max(0)
+        } else {
+            0
+        };
         let initial_status = if start_paused { 2 } else { 0 };
         if let Err(e) = self
             .db
@@ -2594,7 +2599,7 @@ impl DownloadManager {
                 &file_name,
                 &save_dir,
                 seg,
-                0,
+                db_total_bytes,
                 &proxy_url,
                 &queue_id,
                 &checksum,
@@ -2644,7 +2649,7 @@ impl DownloadManager {
             task_id: task_id.clone(),
             status: initial_status,
             downloaded_bytes: 0,
-            total_bytes: 0,
+            total_bytes: db_total_bytes,
             speed: 0,
             file_name: file_name.clone(),
             save_dir: save_dir.clone(),

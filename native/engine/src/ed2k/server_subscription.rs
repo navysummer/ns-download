@@ -27,6 +27,9 @@ use std::time::Duration;
 const DEFAULT_SERVER_MET_URLS: &[&str] = &[
     "http://upd.emule-security.org/server.met",
     "https://www.shortypower.org/server.met",
+    "http://emuling.gitlab.io/server.met",
+    "http://peerates.net/servers.met",
+    "http://update.adunanza.net/servers.met",
 ];
 
 /// 缓存超过此时长即重新拉取（24 小时）。

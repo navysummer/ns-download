@@ -1236,7 +1236,7 @@ impl Db {
     /// Insert default config values (only if not already set).
     pub async fn init_default_config(&self, default_save_dir: &str) -> Result<(), DbError> {
         let default_sub_urls = "https://trackerslist.com/best.txt\nhttps://ngosang.github.io/trackerslist/trackers_best.txt";
-        let default_ed2k_met_urls = "http://upd.emule-security.org/server.met\nhttps://www.shortypower.org/server.met";
+        let default_ed2k_met_urls = "http://upd.emule-security.org/server.met\nhttps://www.shortypower.org/server.met\nhttp://emuling.gitlab.io/server.met\nhttp://peerates.net/servers.met\nhttp://update.adunanza.net/servers.met";
         let defaults: &[(&str, &str)] = &[
             ("default_save_dir", default_save_dir),
             ("default_segments", "0"),
@@ -1276,7 +1276,7 @@ impl Db {
             ("local_server_api_enabled", "false"),
             (
                 "ed2k_server_list",
-                "176.123.5.89:4725,45.82.80.155:5687,85.121.5.137:4232,176.123.2.239:4232,145.239.2.134:4661,91.208.162.87:4232,37.15.61.236:4232",
+                "45.82.80.155:5687,176.123.5.89:4725,91.208.162.87:4232,185.25.48.89:18357,145.239.2.134:4661,213.252.245.239:43333,213.141.198.207:4232,45.87.41.16:6262",
             ),
             ("ed2k_server_sub_enabled", "true"),
             ("ed2k_server_sub_urls", default_ed2k_met_urls),

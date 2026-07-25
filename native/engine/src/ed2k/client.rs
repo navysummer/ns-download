@@ -44,7 +44,7 @@ use crate::ed2k::server::{
 
 /// 服务器会话保活间隔（无查询时定期发一次 GETSOURCES 心跳靠调用驱动，
 /// 这里仅用于重连节流）。
-const SERVER_CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
+const SERVER_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// 入站 callback 等待超时。
 const CALLBACK_TIMEOUT: Duration = Duration::from_secs(30);
@@ -353,9 +353,9 @@ impl Ed2kClient {
         total_bytes: u64,
         large_file: bool,
     ) -> Result<Vec<Source>, DownloadError> {
-        // 保持持久会话（供 LowID callback 中转）+ 监听器就绪，best-effort。
+        // 保持监听器就绪，best-effort。持久会话（LowID callback）由
+        // 各 query_one_server 独立建立，无需提前占位。
         let listen_port = self.ensure_listener().await.unwrap_or(0);
-        let _ = self.ensure_server_session().await;
 
         let servers = self
             .config
@@ -369,7 +369,13 @@ impl Ed2kClient {
 
         // 并发对多台服务器发 GETSOURCES 并聚合：不同服务器索引不同文件，
         // 单服务器常常没有目标文件（实测 45.82.80.155 无此文件而 77.42.68.79 有）。
-        let mut join: JoinSet<Vec<(u32, u16)>> = JoinSet::new();
+        let server_count = servers.len().min(MAX_QUERY_SERVERS);
+        log_info!(
+            "[ed2k-client] find_sources: querying {} server(s) for file_hash={:02X?}",
+            server_count,
+            file_hash
+        );
+        let mut join: JoinSet<Result<Vec<(u32, u16)>, String>> = JoinSet::new();
         for server in servers.into_iter().take(MAX_QUERY_SERVERS) {
             let Some((host, port)) = parse_hostport(&server) else {
                 continue;
@@ -378,7 +384,7 @@ impl Ed2kClient {
             join.spawn(async move {
                 query_one_server(&host, port, listen_port, &hash, total_bytes, large_file)
                     .await
-                    .unwrap_or_default()
+                    .map_err(|e| format!("{}: {e}", host))
             });
         }
 
@@ -386,31 +392,47 @@ impl Ed2kClient {
         let am_high = self.is_high_id();
         let mut seen: HashSet<Source> = HashSet::new();
         let mut out = Vec::new();
+        let mut succeeded = 0usize;
+        let mut failed = 0usize;
         while let Some(res) = join.join_next().await {
-            let Ok(raw) = res else { continue };
-            for (id, port) in raw {
-                if id >= LOWID_THRESHOLD {
-                    if port == 0 || id == my_id {
-                        continue;
+            match res {
+                Ok(Ok(raw)) => {
+                    succeeded += 1;
+                    for (id, port) in raw {
+                        if id >= LOWID_THRESHOLD {
+                            if port == 0 || id == my_id {
+                                continue;
+                            }
+                            let src = Source::HighId(PeerAddr {
+                                ip: id_to_ipv4(id),
+                                port,
+                            });
+                            if seen.insert(src) {
+                                out.push(src);
+                            }
+                        } else if am_high {
+                            // LowID 源仅在我方 HighID 时可用（经持久会话 callback 中转）。
+                            let src = Source::LowId(id);
+                            if seen.insert(src) {
+                                out.push(src);
+                            }
+                        }
                     }
-                    let src = Source::HighId(PeerAddr {
-                        ip: id_to_ipv4(id),
-                        port,
-                    });
-                    if seen.insert(src) {
-                        out.push(src);
-                    }
-                } else if am_high {
-                    // LowID 源仅在我方 HighID 时可用（经持久会话 callback 中转）。
-                    let src = Source::LowId(id);
-                    if seen.insert(src) {
-                        out.push(src);
-                    }
+                }
+                Ok(Err(host_err)) => {
+                    failed += 1;
+                    log_info!(
+                        "[ed2k-client] find_sources: {} failed: {host_err}",
+                        host_err.split(':').next().unwrap_or("unknown")
+                    );
+                }
+                Err(_) => {
+                    failed += 1;
                 }
             }
         }
         log_info!(
-            "[ed2k-client] find_sources: {} sources aggregated across servers",
+            "[ed2k-client] find_sources: {succeeded} ok, {failed} failed, {} sources total",
             out.len()
         );
         Ok(out)
@@ -497,12 +519,26 @@ async fn query_one_server(
     total_bytes: u64,
     large_file: bool,
 ) -> Result<Vec<(u32, u16)>, DownloadError> {
-    let (mut stream, _client_id) = tokio::time::timeout(
+    let (mut stream, _client_id) = match tokio::time::timeout(
         SERVER_CONNECT_TIMEOUT,
         login_server(host, port, listen_port),
     )
     .await
-    .map_err(|_| DownloadError::Ed2k("login timed out".into()))??;
+    {
+        Ok(Ok(pair)) => pair,
+        Ok(Err(e)) => {
+            return Err(DownloadError::Ed2k(format!(
+                "login to {} failed: {e}",
+                host
+            )));
+        }
+        Err(_) => {
+            return Err(DownloadError::Ed2k(format!(
+                "login to {} timed out after {:?}",
+                host, SERVER_CONNECT_TIMEOUT
+            )));
+        }
+    };
     let gs = proto::frame(
         OP_GETSOURCES,
         &build_getsources_payload(file_hash, total_bytes, large_file),

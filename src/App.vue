@@ -71,7 +71,7 @@ onMounted(async () => {
           speed: p.speed,
           upload_speed: p.upload_speed_bps,
         };
-      } else {
+      } else if (!store.tasks.some(t => t.id === p.task_id)) {
         store.tasks.push({
           id: p.task_id,
           url: p.url,

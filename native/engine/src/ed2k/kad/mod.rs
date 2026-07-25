@@ -17,6 +17,10 @@ use std::time::Duration;
 const MAX_NODES_DAT_BYTES: usize = 4 * 1024 * 1024;
 /// nodes.dat 下载超时。
 const FETCH_TIMEOUT: Duration = Duration::from_secs(20);
+/// nodes.dat 自动刷新间隔（秒）。
+pub const FETCH_INTERVAL_SECS: u64 = 86400;
+/// 默认 nodes.dat 下载地址（eMule Security community bootstrap）。
+pub const DEFAULT_NODES_DAT_URL: &str = "https://upd.emule-security.org/nodes.dat";
 
 /// 从 `url` 下载 `nodes.dat` 原始字节并校验可解析出 ≥1 个联系点。
 ///

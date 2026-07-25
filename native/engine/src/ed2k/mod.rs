@@ -443,7 +443,13 @@ async fn run_ed2k_download_inner(params: &DownloadParams) -> Result<i64, Downloa
                     () = params.cancel_token.cancelled() => break 'outer Err(DownloadError::Cancelled),
                     r = client.find_sources(&link.root_hash, total_bytes, large_file) => r,
                 };
-                let mut merged: Vec<Source> = server_res.unwrap_or_default();
+                let mut merged: Vec<Source> = match server_res {
+                    Ok(s) => s,
+                    Err(e) => {
+                        log_info!("[ed2k] find_sources failed: {e}");
+                        Vec::new()
+                    }
+                };
                 if enable_kad && !nodes_dat.is_empty() {
                     let kad_res = crate::ed2k::kad::node::find_sources_kad(
                         &link.root_hash,
@@ -455,14 +461,20 @@ async fn run_ed2k_download_inner(params: &DownloadParams) -> Result<i64, Downloa
                         &params.cancel_token,
                     )
                     .await;
-                    if let Ok(peers) = kad_res {
-                        let mut seen: HashSet<Source> = merged.iter().copied().collect();
-                        for peer in peers {
-                            let src = Source::HighId(peer);
-                            if seen.insert(src) {
-                                merged.push(src);
+                    match kad_res {
+                        Ok(peers) => {
+                            if peers.is_empty() {
+                                log_info!("[ed2k] Kad find_sources returned 0 peers");
+                            }
+                            let mut seen: HashSet<Source> = merged.iter().copied().collect();
+                            for peer in peers {
+                                let src = Source::HighId(peer);
+                                if seen.insert(src) {
+                                    merged.push(src);
+                                }
                             }
                         }
+                        Err(e) => log_info!("[ed2k] Kad find_sources failed: {e}"),
                     }
                 }
                 if !merged.is_empty() {

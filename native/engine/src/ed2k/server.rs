@@ -364,21 +364,21 @@ async fn query_one_server(
 }
 
 /// 循环读帧直到 `OP_IDCHANGE`，跳过 MOTD/状态帧；`OP_REJECT` → Err。
-pub(crate) async fn read_until_id_change(stream: &mut TcpStream) -> Result<u32, DownloadError> {
-    for _ in 0..32 {
-        let (proto_byte, opcode, payload) = proto::read_frame(stream, MAX_SERVER_FRAME).await?;
-        match proto::dispatch(proto_byte, opcode, &payload, false)? {
-            Ed2kMessage::IdChange { client_id } => return Ok(client_id),
-            Ed2kMessage::Reject => {
-                return Err(DownloadError::Ed2k("server rejected login".into()));
-            }
-            Ed2kMessage::ServerMessage(msg) => {
-                log_info!("[ed2k-server] MOTD: {}", msg.replace('\n', " "));
-            }
-            Ed2kMessage::ServerStatus | Ed2kMessage::Unknown(_) => {}
-            _ => {}
-        }
-    }
+ pub(crate) async fn read_until_id_change(stream: &mut TcpStream) -> Result<u32, DownloadError> {
+     for _ in 0..32 {
+         let (proto_byte, opcode, payload) = proto::read_frame(stream, MAX_SERVER_FRAME).await?;
+         match proto::dispatch(proto_byte, opcode, &payload, false)? {
+             Ed2kMessage::IdChange { client_id } => return Ok(client_id),
+             Ed2kMessage::Reject => {
+                 return Err(DownloadError::Ed2k("server rejected login".into()));
+             }
+             Ed2kMessage::ServerMessage(msg) => {
+                 log_info!("[ed2k-server] MOTD: {}", msg.replace('\n', " "));
+             }
+             Ed2kMessage::ServerStatus | Ed2kMessage::Unknown(_) => {}
+             _ => {}
+         }
+     }
     Err(DownloadError::Ed2k("no IdChange after 32 frames".into()))
 }
 
