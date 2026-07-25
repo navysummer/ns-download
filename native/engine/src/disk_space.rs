@@ -30,9 +30,9 @@ pub fn available_disk_space(path: &Path) -> i64 {
     #[cfg(windows)]
     {
         let path_str = path.to_string_lossy();
-        let wide: Vec<u16> = path_str.encode_utf16().collect();
+        let wide: Vec<u16> = path_str.encode_utf16().chain(std::iter::once(0)).collect();
         unsafe {
-            let mut free_bytes: i64 = 0;
+            let mut free_bytes: u64 = 0;
             if windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW(
                 wide.as_ptr(),
                 &mut free_bytes,
@@ -40,7 +40,7 @@ pub fn available_disk_space(path: &Path) -> i64 {
                 std::ptr::null_mut(),
             ) != 0
             {
-                return free_bytes;
+                return free_bytes as i64;
             }
         }
         0
