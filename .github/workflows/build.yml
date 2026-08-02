@@ -388,25 +388,35 @@ jobs:
       - name: Organize release files
         run: |
           mkdir -p release
-          # 处理 Linux 文件
-          for ext in deb rpm AppImage; do
-            find artifacts -name "*.${ext}" -exec cp {} "release/linux.${ext}" \; 2>/dev/null || true
+          for dir in artifacts/*/; do
+            label="$(basename "$dir")"
+            case "$label" in
+              "Linux x86_64")   prefix="linux-amd64" ;;
+              "Linux ARM64")    prefix="linux-arm64" ;;
+              "macOS x86_64")   prefix="macos-x64" ;;
+              "macOS ARM64")    prefix="macos-arm64" ;;
+              "Windows x86_64") prefix="windows-x64" ;;
+              "Windows ARM64")  prefix="windows-arm64" ;;
+              "Android")        prefix="android" ;;
+              "iOS")            prefix="ios" ;;
+              *)                prefix="$label" ;;
+            esac
+            case "$label" in
+              Linux*)
+                find "$dir" -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.AppImage" \) \
+                  -exec sh -c 'cp "$1" "release/$2-$(basename "$1")"' _ {} "$prefix" \; ;;
+              macOS*)
+                find "$dir" -type f -name "*.dmg" \
+                  -exec sh -c 'cp "$1" "release/$2-$(basename "$1")"' _ {} "$prefix" \; ;;
+              Windows*)
+                find "$dir" -type f \( -name "*.msi" -o -name "*.exe" -o -name "*.nupkg" \) \
+                  -exec sh -c 'cp "$1" "release/$2-$(basename "$1")"' _ {} "$prefix" \; ;;
+              Android*)
+                find "$dir" -type f -name "*.apk" -exec cp {} "release/android.apk" \; ;;
+              iOS*)
+                find "$dir" -type f -name "*.ipa" -exec cp {} "release/ios.ipa" \; ;;
+            esac
           done
-
-          # 处理 macOS 文件
-          find artifacts -name "*.dmg" -exec cp {} "release/macos.dmg" \; 2>/dev/null || true
-
-          # 处理 Windows 文件
-          for ext in msi exe nupkg; do
-            find artifacts -name "*.${ext}" -exec cp {} "release/windows.${ext}" \; 2>/dev/null || true
-          done
-
-          # 处理 Android 文件
-          find artifacts -name "*.apk" -exec cp {} "release/ns-download-android.apk" \; 2>/dev/null || true
-
-          # 处理 iOS 文件
-          find artifacts -name "*.ipa" -exec cp {} "release/ns-download-ios.ipa" \; 2>/dev/null || true
-
           ls -la release/
 
       - name: Upload to GitHub Release
