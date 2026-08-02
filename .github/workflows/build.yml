@@ -87,6 +87,33 @@ jobs:
           corepack prepare pnpm@latest --activate
           echo "pnpm-version=$(pnpm -v)" >> $GITHUB_OUTPUT
 
+      - name: Resolve cache directories
+        id: cache-dirs
+        shell: bash
+        run: |
+          eval "$(fnm env)"
+          echo "pnpm-store=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+          case "$RUNNER_OS" in
+            Linux) T=".cache/tauri" ;;
+            macOS) T="Library/Caches/tauri" ;;
+            Windows) T="$LOCALAPPDATA\\tauri" ;;
+          esac
+          echo "tauri-cache=$T" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.cache-dirs.outputs.pnpm-store }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Cache Tauri bundler tools
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.cache-dirs.outputs.tauri-cache }}
+          key: ${{ runner.os }}-tauri-bundler
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -97,6 +124,7 @@ jobs:
         with:
           workspaces: src-tauri -> target
           key: ${{ matrix.target }}
+          save-always: true
 
       - name: Install Linux system dependencies
         if: runner.os == 'Linux'
@@ -186,6 +214,33 @@ jobs:
           corepack enable
           corepack prepare pnpm@latest --activate
 
+      - name: Resolve cache directories
+        id: cache-dirs
+        shell: bash
+        run: |
+          eval "$(fnm env)"
+          echo "pnpm-store=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+          case "$RUNNER_OS" in
+            Linux) T=".cache/tauri" ;;
+            macOS) T="Library/Caches/tauri" ;;
+            Windows) T="$LOCALAPPDATA\\tauri" ;;
+          esac
+          echo "tauri-cache=$T" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.cache-dirs.outputs.pnpm-store }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Cache Tauri bundler tools
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.cache-dirs.outputs.tauri-cache }}
+          key: ${{ runner.os }}-tauri-bundler
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -258,6 +313,33 @@ jobs:
         run: |
           corepack enable
           corepack prepare pnpm@latest --activate
+
+      - name: Resolve cache directories
+        id: cache-dirs
+        shell: bash
+        run: |
+          eval "$(fnm env)"
+          echo "pnpm-store=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+          case "$RUNNER_OS" in
+            Linux) T=".cache/tauri" ;;
+            macOS) T="Library/Caches/tauri" ;;
+            Windows) T="$LOCALAPPDATA\\tauri" ;;
+          esac
+          echo "tauri-cache=$T" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.cache-dirs.outputs.pnpm-store }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml', 'pnpm-workspace.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Cache Tauri bundler tools
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.cache-dirs.outputs.tauri-cache }}
+          key: ${{ runner.os }}-tauri-bundler
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
