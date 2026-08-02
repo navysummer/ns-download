@@ -357,101 +357,119 @@ pub async fn reveal_in_folder(path: String) -> Result<(), String> {
                 }
             }
         }
+        Ok(())
     }
     #[cfg(mobile)]
-    return Err("Not supported on mobile".to_string());
-    Ok(())
+    {
+        let _ = path;
+        Err("Not supported on mobile".to_string())
+    }
 }
 
 #[tauri::command]
 pub async fn send_notification(title: String, body: String) -> Result<(), String> {
-    #[cfg(all(not(mobile), target_os = "macos"))]
+    #[cfg(not(mobile))]
     {
-        let script = format!(
-            "display notification \"{}\" with title \"{}\"",
-            body.replace('"', "\\\""),
-            title.replace('"', "\\\"")
-        );
-        std::process::Command::new("osascript")
-            .arg("-e")
-            .arg(&script)
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    }
-    #[cfg(all(not(mobile), target_os = "windows"))]
-    {
-        let script = format!(
-            "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; \
-             $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); \
-             $textNodes = $template.GetElementsByTagName('text'); \
-             $textNodes.Item(0).AppendChild($template.CreateTextNode('{}')) > $null; \
-             $textNodes.Item(1).AppendChild($template.CreateTextNode('{}')) > $null; \
-             $toast = [Windows.UI.Notifications.ToastNotification]::new($template); \
-             [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('ns-download').Show($toast)",
-            title, body
-        );
-        let _ = std::process::Command::new("powershell")
-            .args(["-NoProfile", "-Command", &script])
-            .spawn();
-    }
-    #[cfg(all(not(mobile), target_os = "linux"))]
-    {
-        let _ = std::process::Command::new("notify-send")
-            .args([&title, &body])
-            .spawn();
+        #[cfg(target_os = "macos")]
+        {
+            let script = format!(
+                "display notification \"{}\" with title \"{}\"",
+                body.replace('"', "\\\""),
+                title.replace('"', "\\\"")
+            );
+            std::process::Command::new("osascript")
+                .arg("-e")
+                .arg(&script)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        }
+        #[cfg(target_os = "windows")]
+        {
+            let script = format!(
+                "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; \
+                 $template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02); \
+                 $textNodes = $template.GetElementsByTagName('text'); \
+                 $textNodes.Item(0).AppendChild($template.CreateTextNode('{}')) > $null; \
+                 $textNodes.Item(1).AppendChild($template.CreateTextNode('{}')) > $null; \
+                 $toast = [Windows.UI.Notifications.ToastNotification]::new($template); \
+                 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('ns-download').Show($toast)",
+                title, body
+            );
+            let _ = std::process::Command::new("powershell")
+                .args(["-NoProfile", "-Command", &script])
+                .spawn();
+        }
+        #[cfg(target_os = "linux")]
+        {
+            let _ = std::process::Command::new("notify-send")
+                .args([&title, &body])
+                .spawn();
+        }
+        Ok(())
     }
     #[cfg(mobile)]
-    return Err("Not supported on mobile".to_string());
-    Ok(())
+    {
+        let _ = (title, body);
+        Err("Not supported on mobile".to_string())
+    }
 }
 
 #[tauri::command]
 pub async fn prevent_sleep(prevent: bool) -> Result<(), String> {
-    #[cfg(all(not(mobile), target_os = "macos"))]
+    #[cfg(not(mobile))]
     {
-        use std::process::{Command, Stdio};
-        if prevent {
-            Command::new("caffeinate")
-                .args(["-dimsu", "-t", "86400"])
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn()
-                .map_err(|e| e.to_string())?;
-        } else {
-            let _ = Command::new("pkill")
-                .args(["-f", "caffeinate -dimsu"])
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn();
+        #[cfg(target_os = "macos")]
+        {
+            use std::process::{Command, Stdio};
+            if prevent {
+                Command::new("caffeinate")
+                    .args(["-dimsu", "-t", "86400"])
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .spawn()
+                    .map_err(|e| e.to_string())?;
+            } else {
+                let _ = Command::new("pkill")
+                    .args(["-f", "caffeinate -dimsu"])
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null())
+                    .spawn();
+            }
         }
-    }
-    #[cfg(all(not(mobile), target_os = "windows"))]
-    {
-        if prevent {
-            std::process::Command::new("powercfg")
-                .args(["/change", "standby-timeout-ac", "0"])
-                .spawn()
-                .map_err(|e| e.to_string())?;
+        #[cfg(target_os = "windows")]
+        {
+            if prevent {
+                std::process::Command::new("powercfg")
+                    .args(["/change", "standby-timeout-ac", "0"])
+                    .spawn()
+                    .map_err(|e| e.to_string())?;
+            }
         }
-    }
-    #[cfg(all(not(mobile), target_os = "linux"))]
-    {
-        if prevent {
-            let _ = std::process::Command::new("systemd-inhibit")
-                .args(["--what=sleep", "--who=ns-download", "--why=Downloading",
-                       &std::env::current_exe().unwrap_or_default().to_string_lossy()])
-                .spawn();
+        #[cfg(target_os = "linux")]
+        {
+            if prevent {
+                let _ = std::process::Command::new("systemd-inhibit")
+                    .args(["--what=sleep", "--who=ns-download", "--why=Downloading",
+                           &std::env::current_exe().unwrap_or_default().to_string_lossy()])
+                    .spawn();
+            }
         }
+        Ok(())
     }
     #[cfg(mobile)]
-    return Err("Not supported on mobile".to_string());
-    Ok(())
+    {
+        let _ = prevent;
+        Err("Not supported on mobile".to_string())
+    }
 }
 
 #[tauri::command]
 pub async fn shutdown_system(action: String) -> Result<(), String> {
     #[cfg(mobile)]
-    return Err("Not supported on mobile".to_string());
+    {
+        let _ = action;
+        return Err("Not supported on mobile".to_string());
+    }
 
     #[cfg(not(mobile))]
     match action.as_str() {
@@ -628,7 +646,12 @@ pub async fn check_update(current_version: String) -> Result<CheckUpdateResult, 
 #[tauri::command]
 pub async fn check_command_exists(name: String) -> Result<Option<String>, String> {
     #[cfg(mobile)]
-    return Ok(None);
+    {
+        let _ = name;
+        return Ok(None);
+    }
+
+    #[cfg(not(mobile))]
     let output = std::process::Command::new("which")
         .arg(&name)
         .output()

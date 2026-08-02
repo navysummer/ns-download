@@ -12,6 +12,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::menu::{Menu, MenuItem};
 #[cfg(not(mobile))]
 use tauri::image::Image;
+#[cfg(not(mobile))]
 use tauri::Manager;
 
 pub struct AppState {
@@ -117,6 +118,8 @@ pub fn run() {
             if let Err(e) = setup_tray(app) {
                 eprintln!("Failed to setup tray: {e}");
             }
+            #[cfg(mobile)]
+            let _ = app;
             Ok(())
         })
         .run(tauri::generate_context!())
