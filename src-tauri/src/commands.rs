@@ -652,31 +652,33 @@ pub async fn check_command_exists(name: String) -> Result<Option<String>, String
     }
 
     #[cfg(not(mobile))]
-    let output = std::process::Command::new("which")
-        .arg(&name)
-        .output()
-        .map_err(|e| e.to_string())?;
-
-    if output.status.success() {
-        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        // Try to get version
-        let version_output = std::process::Command::new(&name)
-            .arg("--version")
+    {
+        let output = std::process::Command::new("which")
+            .arg(&name)
             .output()
-            .ok();
-        if let Some(vo) = version_output {
-            if vo.status.success() {
-                let version_line = String::from_utf8_lossy(&vo.stdout)
-                    .lines()
-                    .next()
-                    .unwrap_or("")
-                    .to_string();
-                return Ok(Some(format!("{} @ {}", version_line, path)));
+            .map_err(|e| e.to_string())?;
+
+        if output.status.success() {
+            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            // Try to get version
+            let version_output = std::process::Command::new(&name)
+                .arg("--version")
+                .output()
+                .ok();
+            if let Some(vo) = version_output {
+                if vo.status.success() {
+                    let version_line = String::from_utf8_lossy(&vo.stdout)
+                        .lines()
+                        .next()
+                        .unwrap_or("")
+                        .to_string();
+                    return Ok(Some(format!("{} @ {}", version_line, path)));
+                }
             }
+            Ok(Some(path))
+        } else {
+            Ok(None)
         }
-        Ok(Some(path))
-    } else {
-        Ok(None)
     }
 }
 
