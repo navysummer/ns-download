@@ -32,6 +32,7 @@ jobs:
           - os: ubuntu-24.04
             target: aarch64-unknown-linux-gnu
             label: Linux ARM64
+            bundles: deb,rpm
 
           - os: macos-15-intel
             target: x86_64-apple-darwin
@@ -144,7 +145,11 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: "1"
         run: |
           eval "$(fnm env)"
-          pnpm tauri build --target ${{ matrix.target }}
+          if [ -n "${{ matrix.bundles }}" ]; then
+            pnpm tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+          else
+            pnpm tauri build --target ${{ matrix.target }}
+          fi
 
       - name: Upload bundle
         uses: actions/upload-artifact@v4
