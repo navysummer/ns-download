@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicedoc/tauri/dev/crates/tauri-config-schema/schema.json",
-  "productName": "NS Download",
+  "productName": "NS-Download",
   "version": "0.0.1",
   "identifier": "com.nsdownload.app",
   "build": {

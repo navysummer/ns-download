@@ -66,40 +66,32 @@ fn cookies_for_url<'a>(playlist_url: &str, target_url: &str, cookies: &'a str) -
 // Constants
 // ---------------------------------------------------------------------------
 
-const MAX_RETRIES: u32 = 3;
-const RETRY_BASE_DELAY: std::time::Duration = std::time::Duration::from_secs(2);
+/// 单个段的下载重试上限。HLS 采用**直接串行下载**（每次只下载一个段）：
+/// 部分服务器（如 test-streams.mux.dev）按 IP 限制并发连接，甚至会出现
+/// 「连接被接受但 0 字节交付」的饿死连接；串行 + 持久重试即可像播放器一样
+/// 逐个分片最终下完。实测饿死概率约 50%，100 次重试覆盖绝大多数情况，
+/// 且一个段永久失败会取消整个任务，故宁可多等也不轻易判死。
+const MAX_RETRIES: u32 = 100;
 
-/// Upper bound on concurrent segment downloads.
+/// 重试之间的固定延迟（+ 按 seg_idx 的抖动，避免各段同步唤醒）。
+const RETRY_DELAY: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// 判断一个失败是否「永久性」——重试毫无意义，应立即判死该段。
 ///
-/// Higher concurrency smooths progress by reducing the per-batch wait for the
-/// slowest segment.  Capped at 32 to keep CDN per-IP connection pressure
-/// manageable — most HLS CDNs handle 32 parallel connections well, and the
-/// segment advisory bandwidth probe naturally limits total concurrency when
-/// the connection is slow.  The `build_client` idle pool
-/// (`pool_max_idle_per_host = 64`) is large enough to keep every HLS
-/// connection warm.
-const MAX_HLS_CONCURRENCY: usize = 32;
-
-/// Concurrency used when the user left the segment count on "auto"
-/// (`segment_count <= 0`).  24 is a good balance: fast enough for common
-/// 64-segment playlists without overwhelming small CDNs.
-const DEFAULT_HLS_CONCURRENCY: usize = 24;
-
-/// Pick the number of segments to download in parallel.
-///
-/// Derived from the user-configured `segment_count` (the same knob the
-/// multi-segment HTTP downloader uses), clamped to `[1, MAX_HLS_CONCURRENCY]`
-/// and never exceeding the number of segments actually left to download.
-/// `segment_count <= 0` means "auto" → `DEFAULT_HLS_CONCURRENCY`.
-fn hls_concurrency(segment_count: i32, remaining_segments: usize) -> usize {
-    let requested = if segment_count <= 0 {
-        DEFAULT_HLS_CONCURRENCY
-    } else {
-        segment_count as usize
-    };
-    requested
-        .clamp(1, MAX_HLS_CONCURRENCY)
-        .min(remaining_segments.max(1))
+/// 目前只把明确的 4xx 客户端错误（403/429 除外，它们常是限流信号，串行
+/// 等一会儿再试可能成功）当作永久性错误；连接超时/重置、数据停滞、截断、
+/// 5xx、IO 错误等一律视为瞬时错误，按 [`MAX_RETRIES`] 持久重试。
+fn is_permanent_error(e: &DownloadError) -> bool {
+    match e {
+        DownloadError::Request(req_err) => {
+            if let Some(status) = req_err.status() {
+                status.is_client_error() && !matches!(status.as_u16(), 403 | 429)
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
 }
 
 pub(crate) fn force_ts_extension(name: &str) -> String {
@@ -612,6 +604,12 @@ pub async fn run_hls_download(params: DownloadParams) {
                 total
             );
             let _ = params.db.update_task_status(&params.task_id, 3, "").await;
+            // 完成时带上最终文件名（可能已被 remux 重命名为 .mp4）。若发空串，
+            // 前端 `task-progress` 会把任务列表里的名称覆盖成空 → 完成后没名字。
+            let final_name = match params.db.load_task_by_id(&params.task_id).await {
+                Ok(Some(t)) => t.file_name,
+                _ => String::new(),
+            };
             let _ = params
                 .progress_tx
                 .send(ProgressUpdate {
@@ -620,7 +618,7 @@ pub async fn run_hls_download(params: DownloadParams) {
                     total_bytes: total,
                     status: 3,
                     error_message: String::new(),
-                    file_name: String::new(),
+                    file_name: final_name,
                     segment_details: None,
                     ..Default::default()
                 })
@@ -634,15 +632,15 @@ pub async fn run_hls_download(params: DownloadParams) {
             log_info!("[hls-download] task {} error: {}", task_id_log, msg);
             let _ = params.db.update_task_status(&params.task_id, 4, &msg).await;
 
-            let (dl, total) = match params.db.load_task_by_id(&params.task_id).await {
-                Ok(Some(t)) => (t.downloaded_bytes, t.total_bytes),
+            let (dl, total, file_name) = match params.db.load_task_by_id(&params.task_id).await {
+                Ok(Some(t)) => (t.downloaded_bytes, t.total_bytes, t.file_name),
                 other => {
                     log_info!(
                         "[hls-download] task {} warning: failed to read progress from DB: {:?}",
                         task_id_log,
                         other.err()
                     );
-                    (0, 0)
+                    (0, 0, String::new())
                 }
             };
             let _ = params
@@ -653,7 +651,7 @@ pub async fn run_hls_download(params: DownloadParams) {
                     total_bytes: total,
                     status: 4,
                     error_message: msg,
-                    file_name: String::new(),
+                    file_name,
                     segment_details: None,
                     ..Default::default()
                 })
@@ -1019,12 +1017,14 @@ async fn run_hls_download_inner(p: &DownloadParams) -> Result<i64, DownloadError
     // -----------------------------------------------------------------------
     let first_idx = skip_segments;
     let remaining = segment_count.saturating_sub(first_idx);
-    let concurrency = hls_concurrency(p.segment_count, remaining);
+    // 直接串行下载：同一时刻只下载一个段。部分服务器（如 mux.dev 测试流）
+    // 按 IP 限制并发连接甚至饿死连接，串行 + 段级持久重试最稳，代价是
+    // 健康 CDN 上无法并行提速。
+    let concurrency = 1usize;
     log_info!(
-        "[hls-download] task {} downloading {} remaining segment(s) with concurrency {}",
+        "[hls-download] task {} downloading {} remaining segment(s) serially",
         p.task_id,
-        remaining,
-        concurrency
+        remaining
     );
 
     let semaphore = Arc::new(Semaphore::new(concurrency));
@@ -1661,6 +1661,13 @@ async fn download_segment_with_retry(
             Err(DownloadError::Cancelled) => return Err(DownloadError::Cancelled),
             Err(e) => {
                 attempts += 1;
+                // 永久性错误（明确的 4xx）重试毫无意义，立即判死该段。
+                if is_permanent_error(&e) {
+                    return Err(DownloadError::Other(format!(
+                        "HLS segment {} failed with a permanent error: {}",
+                        seg_idx, e
+                    )));
+                }
                 if attempts >= MAX_RETRIES {
                     return Err(DownloadError::Other(format!(
                         "HLS segment {} failed after {} retries: {}",
@@ -1675,10 +1682,12 @@ async fn download_segment_with_retry(
                     MAX_RETRIES,
                     e
                 );
-                let delay = RETRY_BASE_DELAY * 2u32.saturating_pow(attempts - 1);
+                // 固定短延迟 + 按 seg_idx 抖动：串行下载下相邻段重试错开，
+                // 避免重试风暴；对限流服务器，等前一个连接结束即可成功。
+                let jitter = std::time::Duration::from_millis((seg_idx as u64 % 3) * 250);
                 tokio::select! {
                     _ = cancel_token.cancelled() => return Err(DownloadError::Cancelled),
-                    _ = tokio::time::sleep(delay) => {}
+                    _ = tokio::time::sleep(RETRY_DELAY + jitter) => {}
                 }
             }
         }
@@ -1842,9 +1851,8 @@ async fn download_segment_once(
 #[cfg(test)]
 mod tests {
     use super::{
-        DEFAULT_HLS_CONCURRENCY, MAX_HLS_CONCURRENCY, compute_default_iv, decrypt_segment,
-        hls_concurrency, is_hls_url, parse_iv_hex, parse_resume_checkpoint, remux_space_ok,
-        resolve_uri,
+        compute_default_iv, decrypt_segment, is_hls_url, parse_iv_hex, parse_resume_checkpoint,
+        remux_space_ok, resolve_uri,
     };
     use aes::Aes128;
     use cbc::cipher::block_padding::{NoPadding, Pkcs7};
@@ -2120,42 +2128,38 @@ mod tests {
         );
     }
 
-    // --- #275: concurrency selection bounds ---
+    // --- retry error classification (permanent vs transient) ---
+
+    use super::is_permanent_error;
+    use crate::downloader::DownloadError;
 
     #[test]
-    fn test_hls_concurrency_auto_uses_default() {
-        // segment_count <= 0 means "auto": fall back to DEFAULT, but never
-        // exceed the number of remaining segments.
-        assert_eq!(hls_concurrency(0, 100), DEFAULT_HLS_CONCURRENCY);
-        assert_eq!(hls_concurrency(-1, 100), DEFAULT_HLS_CONCURRENCY);
-        assert_eq!(hls_concurrency(0, 3), 3);
+    fn test_is_permanent_error_other_and_checksum_false() {
+        // 非 HTTP 错误一律视为瞬时，可重试。
+        assert!(!is_permanent_error(&DownloadError::Other(
+            "HLS segment request timed out (no response in 30s)".to_string()
+        )));
+        assert!(!is_permanent_error(&DownloadError::Other(
+            "HLS segment chunk stalled (no data received in 10s)".to_string()
+        )));
+        assert!(!is_permanent_error(&DownloadError::Other(
+            "HLS segment truncated: got 1 bytes, expected 2".to_string()
+        )));
+        assert!(!is_permanent_error(&DownloadError::ChecksumMismatch(
+            "bad".to_string()
+        )));
     }
 
     #[test]
-    fn test_hls_concurrency_respects_user_value() {
-        assert_eq!(hls_concurrency(4, 100), 4);
-        assert_eq!(hls_concurrency(1, 100), 1);
-    }
-
-    #[test]
-    fn test_hls_concurrency_clamped_to_max() {
-        // Never exceed the connection-pool ceiling even if the user asks for more.
-        assert_eq!(hls_concurrency(999, 100), MAX_HLS_CONCURRENCY);
-        assert_eq!(hls_concurrency(i32::MAX, 100), MAX_HLS_CONCURRENCY);
-    }
-
-    #[test]
-    fn test_hls_concurrency_never_below_one() {
-        // Even with zero remaining (shouldn't happen — guarded earlier), the
-        // semaphore must be created with at least one permit.
-        assert_eq!(hls_concurrency(8, 0), 1);
-        assert_eq!(hls_concurrency(0, 1), 1);
-    }
-
-    #[test]
-    fn test_hls_concurrency_capped_by_remaining() {
-        // Spawning more workers than segments left is wasteful; cap at remaining.
-        assert_eq!(hls_concurrency(16, 5), 5);
-        assert_eq!(hls_concurrency(8, 2), 2);
+    fn test_is_permanent_error_io_false() {
+        // IO 层超时/重置是瞬时的，重试可能成功。
+        assert!(!is_permanent_error(&DownloadError::Io(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            "x"
+        ))));
+        assert!(!is_permanent_error(&DownloadError::Io(std::io::Error::new(
+            std::io::ErrorKind::ConnectionReset,
+            "x"
+        ))));
     }
 }

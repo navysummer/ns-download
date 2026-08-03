@@ -70,6 +70,10 @@ pub struct CreateTaskSpec {
     pub extra_headers: std::collections::HashMap<String, String>,
     #[serde(default)]
     pub overwrite: bool,
+    #[serde(default)]
+    pub start_paused: bool,
+    #[serde(default)]
+    pub queue_id: String,
 }
 
 
@@ -194,6 +198,8 @@ pub async fn create_task(state: State<'_, AppState>, spec: CreateTaskSpec) -> Re
         checksum: spec.checksum,
         extra_headers: spec.extra_headers,
         overwrite: spec.overwrite,
+        start_paused: spec.start_paused,
+        queue_id: spec.queue_id,
         ..Default::default()
     };
 

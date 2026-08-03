@@ -116,7 +116,10 @@ async function pickSaveDir() {
   if (selected) saveDir.value = selected;
 }
 
+const submitting = ref(false);
+
 function submit(later = false) {
+  if (submitting.value) return;
   if (!url.value.trim()) return;
   const entries = url.value.trim().split('\n').filter(l => l.trim() && !l.trim().startsWith('#'));
   if (entries.length === 0) return;
@@ -124,6 +127,8 @@ function submit(later = false) {
   for (const h of headerRows) {
     if (h.key.trim()) headers[h.key.trim()] = h.value;
   }
+  // Guard against double-submit (rapid double-click fires submit twice).
+  submitting.value = true;
   // Close the dialog immediately — do not wait for backend.
   emit("close");
 
@@ -143,7 +148,11 @@ function submit(later = false) {
         save_dir: saveDir.value,
         file_name: rename.value || undefined,
         segments: parseInt(segments.value) || 0,
+        start_paused: later,
       };
+      if (later) {
+        spec.queue_id = "later";
+      }
       if (hasTorrent) {
         spec.torrent_file_bytes = torrentBytes;
         spec.selected_file_indices = torrentIndices;

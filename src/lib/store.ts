@@ -282,13 +282,24 @@ export const useDownloadStore = defineStore("download", () => {
 
   async function loadTasks() {
     try {
-      tasks.value = await invoke<Task[]>("get_tasks");
+      const list = await invoke<Task[]>("get_tasks");
+      const seen = new Set<string>();
+      tasks.value = list.filter((t) => {
+        if (!t.id || seen.has(t.id)) return false;
+        seen.add(t.id);
+        return true;
+      });
     } catch (e) {
       console.error("Failed to load tasks:", e);
     }
   }
 
 const pendingUrls = new Set<string>();
+const DEDUP_GRACE_MS = 3000;
+
+function dedupKey(url: string): string {
+  return url.trim().replace(/\/+$/, "");
+}
 
   async function addTask(spec: {
     url: string;
@@ -304,22 +315,27 @@ const pendingUrls = new Set<string>();
     referrer?: string;
     checksum?: string;
     extra_headers?: Record<string, string>;
+    start_paused?: boolean;
+    queue_id?: string;
   }) {
     try {
-      const dupKey = spec.url.trim();
+      const dupKey = dedupKey(spec.url);
       if (pendingUrls.has(dupKey)) {
-        console.warn(`[store] duplicate task ignored: ${dupKey}`);
+        console.warn(`[store] duplicate task ignored: ${spec.url}`);
         return;
       }
       pendingUrls.add(dupKey);
+      const release = () => {
+        setTimeout(() => pendingUrls.delete(dupKey), DEDUP_GRACE_MS);
+      };
       const timeout = new Promise((_, reject) =>
         setTimeout(() => { pendingUrls.delete(dupKey); reject(new Error("create_task timed out after 15s")); }, 15000)
       );
       await Promise.race([invoke("create_task", { spec }), timeout]);
-      pendingUrls.delete(dupKey);
+      release();
       await loadTasks();
     } catch (e) {
-      pendingUrls.delete(spec.url.trim());
+      pendingUrls.delete(dedupKey(spec.url));
       console.error("Failed to create task:", e);
     }
   }

@@ -57,7 +57,12 @@ onMounted(async () => {
     await store.loadQueues();
 
     unlistens.push(await listen<TasksSnapshotPayload>("tasks-snapshot", (event) => {
-      store.tasks = event.payload.tasks;
+      const seen = new Set<string>();
+      store.tasks = event.payload.tasks.filter((t) => {
+        if (!t.id || seen.has(t.id)) return false;
+        seen.add(t.id);
+        return true;
+      });
     }));
 
     unlistens.push(await listen<TaskPayload>("task-progress", (event) => {
@@ -69,6 +74,9 @@ onMounted(async () => {
           ...store.tasks[idx],
           ...p,
           id: p.task_id,
+          // 进度事件可能携带空 file_name（如 HLS 完成/错误更新），不能据此
+          // 清空任务列表里已有的名称（与 task-meta-probed 的守卫一致）。
+          file_name: p.file_name || store.tasks[idx].file_name,
           speed: p.speed,
           upload_speed: p.upload_speed_bps,
         };
