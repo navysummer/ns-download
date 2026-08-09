@@ -74,16 +74,16 @@ const shutdownPresets = [
 </script>
 
 <template>
-  <footer :style="{ backgroundColor: '#2C2C2E', borderTop: '1px solid #48484A', color: '#8E8E93', height: '28px' }"
+  <footer :style="{ backgroundColor: '#261C14', borderTop: '1px solid #5A4330', color: '#9C8260', height: '28px' }"
     class="flex items-center justify-between px-4 py-1 text-2xs select-none">
     <!-- Left: status + speed -->
     <div class="flex items-center gap-4">
       <div class="flex items-center gap-1.5">
-        <Circle :style="{ color: activeCount > 0 ? '#22C55E' : '#8E8E93' }" class="h-2 w-2" />
+        <Circle :style="{ color: activeCount > 0 ? '#4E7A5A' : '#9C8260' }" class="h-2 w-2" />
         <span>{{ activeCount > 0 ? '下载中' : '空闲' }}</span>
       </div>
       <div class="flex items-center gap-1">
-        <ArrowDown :style="{ color: activeCount > 0 ? '#22C55E' : '#8E8E93' }" class="h-2.5 w-2.5" />
+        <ArrowDown :style="{ color: activeCount > 0 ? '#4E7A5A' : '#9C8260' }" class="h-2.5 w-2.5" />
         <span class="tabular-nums">{{ formatSpeed(dlSpeed) }}/s</span>
       </div>
       <!-- Speed sparkline -->
@@ -95,7 +95,7 @@ const shutdownPresets = [
             const y = 14 - (v / max) * 12;
             return `${x},${y}`;
           }).join(' ')"
-          fill="none" stroke="#22C55E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+          fill="none" stroke="#4E7A5A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
         />
       </svg>
       <span v-if="ulSpeed > 0" class="tabular-nums">↑ {{ formatSpeed(ulSpeed) }}</span>
@@ -108,7 +108,7 @@ const shutdownPresets = [
       <div class="relative">
           <button @click="showSpeedPopover = !showSpeedPopover"
             class="hover-bg-surface2 flex items-center gap-1 rounded px-1 py-0.5 transition-colors"
-            :style="{ color: localLimited ? 'var(--accent)' : '#8E8E93' }"
+            :style="{ color: localLimited ? 'var(--accent)' : '#9C8260' }"
           >
             <Gauge class="h-2.5 w-2.5" />
             <span class="tabular-nums">{{ localLimited ? `${localLimitKbs} KB/s` : '无限' }}</span>
@@ -116,18 +116,18 @@ const shutdownPresets = [
         <div v-if="showSpeedPopover"
           class="fixed z-50 rounded-lg shadow-lg"
           :style="{
-            backgroundColor: '#2C2C2E', border: '1px solid #48484A',
+            backgroundColor: '#261C14', border: '1px solid #5A4330',
             bottom: '32px', right: '120px', width: '220px',
           }"
         >
           <div class="p-3">
             <div class="mb-2 flex items-center justify-between">
-              <span :style="{ color: '#F5F5F7' }" class="text-xs font-semibold">速度限制</span>
+              <span :style="{ color: '#EDE0C8' }" class="text-xs font-semibold">速度限制</span>
               <button @click="localLimited = !localLimited; applySpeedLimit()"
                 class="rounded-sm px-2 py-0.5 text-2xs font-medium transition-colors"
                 :style="{
-                  backgroundColor: localLimited ? 'var(--accent)' : '#3A3A3C',
-                  color: localLimited ? '#fff' : '#A1A1A6',
+                  backgroundColor: localLimited ? 'var(--accent)' : '#33271C',
+                  color: localLimited ? '#EDE0C8' : '#C9B393',
                 }"
               >{{ localLimited ? '开启' : '关闭' }}</button>
             </div>
@@ -136,17 +136,17 @@ const shutdownPresets = [
                 @click="localLimited = true; localLimitKbs = p.kbs; applySpeedLimit()"
                 class="rounded px-2 py-1 text-2xs transition-colors"
                 :style="{
-                  backgroundColor: localLimited && localLimitKbs === p.kbs ? 'var(--accent)' : '#3A3A3C',
-                  color: localLimited && localLimitKbs === p.kbs ? '#fff' : '#A1A1A6',
-                  border: localLimited && localLimitKbs === p.kbs ? '1px solid var(--accent)' : '1px solid #48484A',
+                  backgroundColor: localLimited && localLimitKbs === p.kbs ? 'var(--accent)' : '#33271C',
+                  color: localLimited && localLimitKbs === p.kbs ? '#EDE0C8' : '#C9B393',
+                  border: localLimited && localLimitKbs === p.kbs ? '1px solid var(--accent)' : '1px solid #5A4330',
                 }"
               >{{ p.label }}</button>
             </div>
-            <div class="my-2" :style="{ borderTop: '1px solid #48484A' }"></div>
+            <div class="my-2" :style="{ borderTop: '1px solid #5A4330' }"></div>
             <div class="flex items-center gap-2">
               <input v-model="customSpeed" placeholder="自定义"
                 class="flex-1 rounded px-2 py-1 text-2xs outline-none tabular-nums"
-                :style="{ backgroundColor: '#1C1C1E', border: '1px solid #48484A', color: '#F5F5F7' }"
+                :style="{ backgroundColor: '#1A120E', border: '1px solid #5A4330', color: '#EDE0C8' }"
                 @change="localLimited = true; localLimitKbs = parseInt(customSpeed) || 512; applySpeedLimit()"
               />
               <span class="text-2xs">KB/s</span>
@@ -155,13 +155,13 @@ const shutdownPresets = [
         </div>
       </div>
 
-      <div :style="{ width: '1px', height: '12px', backgroundColor: '#48484A' }"></div>
+      <div :style="{ width: '1px', height: '12px', backgroundColor: '#5A4330' }"></div>
 
       <!-- Shutdown -->
       <div class="relative">
         <button @click="showShutdownPopover = !showShutdownPopover"
           class="hover-bg-surface2 flex items-center gap-1 rounded px-1 py-0.5 transition-colors"
-          :style="{ color: shutdownScheduled ? '#EF4444' : '#8E8E93' }"
+          :style="{ color: shutdownScheduled ? '#B53A2E' : '#9C8260' }"
         >
           <Power class="h-2.5 w-2.5" />
           <span>{{ shutdownScheduled ? '已预约' : '关机' }}</span>
@@ -169,29 +169,29 @@ const shutdownPresets = [
         <div v-if="showShutdownPopover"
           class="fixed z-50 rounded-lg shadow-lg"
           :style="{
-            backgroundColor: '#2C2C2E', border: '1px solid #48484A',
+            backgroundColor: '#261C14', border: '1px solid #5A4330',
             bottom: '32px', right: '12px', width: '240px',
           }"
         >
           <div class="p-3">
             <div class="mb-2 flex items-center justify-between">
-              <span :style="{ color: '#F5F5F7' }" class="text-xs font-semibold">完成后关机</span>
+              <span :style="{ color: '#EDE0C8' }" class="text-xs font-semibold">完成后关机</span>
             </div>
             <div class="flex flex-wrap gap-1.5">
               <button v-for="p in shutdownPresets" :key="p.minutes"
                 @click="p.minutes === 0 ? store.shutdownSystem('shutdown') : scheduleShutdown(p.minutes)"
                 class="rounded px-2 py-1 text-2xs transition-colors"
                 :style="{
-                  backgroundColor: '#3A3A3C', color: '#A1A1A6',
-                  border: '1px solid #48484A',
+                  backgroundColor: '#33271C', color: '#C9B393',
+                  border: '1px solid #5A4330',
                 }"
               >{{ p.label }}</button>
             </div>
-            <div class="my-2" :style="{ borderTop: '1px solid #48484A' }"></div>
+            <div class="my-2" :style="{ borderTop: '1px solid #5A4330' }"></div>
             <div class="flex items-center gap-2">
               <input v-model="shutdownMinutes" placeholder="分钟"
                 class="flex-1 rounded px-2 py-1 text-2xs outline-none tabular-nums"
-                :style="{ backgroundColor: '#1C1C1E', border: '1px solid #48484A', color: '#F5F5F7' }"
+                :style="{ backgroundColor: '#1A120E', border: '1px solid #5A4330', color: '#EDE0C8' }"
                 @change="scheduleShutdown(parseInt(shutdownMinutes) || 0)"
               />
               <span class="text-2xs">分钟后</span>
@@ -200,7 +200,7 @@ const shutdownPresets = [
         </div>
       </div>
 
-      <div :style="{ width: '1px', height: '12px', backgroundColor: '#48484A' }"></div>
+      <div :style="{ width: '1px', height: '12px', backgroundColor: '#5A4330' }"></div>
 
       <!-- Feedback -->
       <button @click="showFeedbackDialog = true" class="hover-bg-surface2 flex items-center gap-1 rounded px-1 py-0.5 transition-colors">

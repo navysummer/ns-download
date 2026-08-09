@@ -43,9 +43,9 @@ function segmentColor(row: number, col: number): string {
   const doneThreshold = Math.floor(progress * totalBlocks);
   const activeZone = 3;
   if (idx <= doneThreshold - activeZone) return 'var(--accent)';
-  if (idx <= doneThreshold) return '#22C55E';
+  if (idx <= doneThreshold) return '#4E7A5A';
   if (idx <= doneThreshold + 2 && props.task.status === 1) return 'var(--accent)';
-  return '#3A3A3C';
+  return '#33271C';
 }
 
 let dragStartY = 0;
@@ -74,45 +74,45 @@ function onDragEnd() {
   <div
     class="flex flex-col shrink-0 overflow-hidden transition-all duration-200"
     :style="{
-      borderTop: '1px solid #48484A',
-      backgroundColor: '#2C2C2E',
+      borderTop: '1px solid #5A4330',
+      backgroundColor: '#261C14',
       height: panelHeight + 'px',
     }"
   >
     <!-- Drag handle -->
     <div
       class="flex cursor-row-resize items-center justify-center py-0.5 shrink-0"
-      :style="{ backgroundColor: '#252527' }"
+      :style="{ backgroundColor: '#1F1610' }"
       @mousedown="onDragStart"
     >
-      <div class="h-0.5 w-8 rounded-full" :style="{ backgroundColor: '#48484A' }"></div>
+      <div class="h-0.5 w-8 rounded-full" :style="{ backgroundColor: '#5A4330' }"></div>
     </div>
 
     <!-- Title bar -->
-    <div class="flex items-center justify-between px-4 py-2 shrink-0" :style="{ borderBottom: '1px solid #3A3A3C' }">
+    <div class="flex items-center justify-between px-4 py-2 shrink-0" :style="{ borderBottom: '1px solid #5A4330' }">
       <div class="flex items-center gap-3 min-w-0">
-        <span class="text-sm font-medium truncate" :style="{ color: '#F5F5F7' }">
+        <span class="text-sm font-medium truncate" :style="{ color: '#EDE0C8' }">
           {{ task.file_name || task.url.split('/').pop() || task.url }}
         </span>
         <span class="rounded px-1.5 py-0.5 text-2xs" :style="{
-          backgroundColor: task.status === 1 ? 'rgba(34,197,94,0.15)' : task.status === 3 ? 'rgba(34,197,94,0.15)' : 'rgba(142,142,147,0.15)',
-          color: task.status === 1 ? '#22C55E' : task.status === 3 ? '#22C55E' : '#8E8E93',
+          backgroundColor: task.status === 1 ? 'rgba(78,122,90,0.18)' : task.status === 3 ? 'rgba(78,122,90,0.18)' : 'rgba(156,130,96,0.18)',
+          color: task.status === 1 ? '#4E7A5A' : task.status === 3 ? '#4E7A5A' : '#9C8260',
         }">{{ statusMap[task.status] || '未知' }}</span>
       </div>
-      <button @click="emit('close')" class="rounded p-1 transition-colors" :style="{ color: '#8E8E93' }">
+      <button @click="emit('close')" class="rounded p-1 transition-colors" :style="{ color: '#9C8260' }">
         <X class="h-4 w-4" />
       </button>
     </div>
 
     <!-- Tab bar -->
-    <div class="flex items-center gap-1 px-3 pt-2 shrink-0" :style="{ borderBottom: '1px solid #3A3A3C' }">
+    <div class="flex items-center gap-1 px-3 pt-2 shrink-0" :style="{ borderBottom: '1px solid #5A4330' }">
       <button
         v-for="tab in tabs" :key="tab.id"
         @click="activeTab = tab.id"
         class="flex items-center gap-1.5 rounded-t-md px-3 py-1.5 text-xs transition-colors"
         :style="activeTab === tab.id
-          ? { backgroundColor: '#3A3A3C', color: '#F5F5F7', borderBottom: '2px solid var(--accent)' }
-          : { color: '#8E8E93' }"
+          ? { backgroundColor: '#33271C', color: '#EDE0C8', borderBottom: '2px solid var(--accent)' }
+          : { color: '#9C8260' }"
       >
         <component :is="tab.icon" class="h-3.5 w-3.5" />
         {{ tab.label }}
@@ -125,53 +125,53 @@ function onDragEnd() {
       <template v-if="activeTab === 'info'">
         <div class="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
           <div>
-            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#8E8E93' }">文件大小</div>
-            <div :style="{ color: '#F5F5F7' }">{{ formatBytes(task.total_bytes) }}</div>
+            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#9C8260' }">文件大小</div>
+            <div :style="{ color: '#EDE0C8' }">{{ formatBytes(task.total_bytes) }}</div>
           </div>
           <div>
-            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#8E8E93' }">已下载</div>
-            <div :style="{ color: '#F5F5F7' }">{{ formatBytes(task.downloaded_bytes) }} ({{ progressPercent }}%)</div>
+            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#9C8260' }">已下载</div>
+            <div :style="{ color: '#EDE0C8' }">{{ formatBytes(task.downloaded_bytes) }} ({{ progressPercent }}%)</div>
           </div>
           <div>
-            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#8E8E93' }">下载速度</div>
-            <div :style="{ color: task.speed > 0 ? '#22C55E' : '#8E8E93' }">{{ task.speed > 0 ? formatSpeed(task.speed) : '—' }}</div>
+            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#9C8260' }">下载速度</div>
+            <div :style="{ color: task.speed > 0 ? '#4E7A5A' : '#9C8260' }">{{ task.speed > 0 ? formatSpeed(task.speed) : '—' }}</div>
           </div>
           <div>
-            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#8E8E93' }">上传速度</div>
-            <div :style="{ color: task.upload_speed > 0 ? '#22C55E' : '#8E8E93' }">{{ task.upload_speed > 0 ? formatSpeed(task.upload_speed) : '—' }}</div>
+            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#9C8260' }">上传速度</div>
+            <div :style="{ color: task.upload_speed > 0 ? '#4E7A5A' : '#9C8260' }">{{ task.upload_speed > 0 ? formatSpeed(task.upload_speed) : '—' }}</div>
           </div>
           <div>
-            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#8E8E93' }">分段数</div>
-            <div :style="{ color: '#F5F5F7' }">{{ task.segments || '—' }}</div>
+            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#9C8260' }">分段数</div>
+            <div :style="{ color: '#EDE0C8' }">{{ task.segments || '—' }}</div>
           </div>
           <div>
-            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#8E8E93' }">保存位置</div>
-            <div :style="{ color: '#A1A1A6' }" class="truncate">{{ task.save_dir || '—' }}</div>
+            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#9C8260' }">保存位置</div>
+            <div :style="{ color: '#C9B393' }" class="truncate">{{ task.save_dir || '—' }}</div>
           </div>
           <div>
-            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#8E8E93' }">下载链接</div>
-            <div :style="{ color: '#A1A1A6' }" class="truncate">{{ task.url || '—' }}</div>
+            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#9C8260' }">下载链接</div>
+            <div :style="{ color: '#C9B393' }" class="truncate">{{ task.url || '—' }}</div>
           </div>
           <div v-if="task.error_message">
-            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#EF4444' }">错误信息</div>
-            <div :style="{ color: '#EF4444' }">{{ task.error_message }}</div>
+            <div class="text-2xs font-medium uppercase tracking-wider mb-0.5" :style="{ color: '#B53A2E' }">错误信息</div>
+            <div :style="{ color: '#B53A2E' }">{{ task.error_message }}</div>
           </div>
         </div>
       </template>
 
       <!-- Files tab -->
       <template v-if="activeTab === 'files'">
-        <div v-if="task.file_name" class="flex items-center gap-3 rounded-lg px-3 py-2" :style="{ backgroundColor: '#1C1C1E' }">
+        <div v-if="task.file_name" class="flex items-center gap-3 rounded-lg px-3 py-2" :style="{ backgroundColor: '#1A120E' }">
           <FileIcon class="h-5 w-5 shrink-0" :style="{ color: 'var(--accent)' }" />
           <div class="min-w-0 flex-1">
-            <div class="text-sm truncate" :style="{ color: '#F5F5F7' }">{{ task.file_name }}</div>
-            <div class="text-2xs" :style="{ color: '#8E8E93' }">{{ formatBytes(task.total_bytes) }}</div>
+            <div class="text-sm truncate" :style="{ color: '#EDE0C8' }">{{ task.file_name }}</div>
+            <div class="text-2xs" :style="{ color: '#9C8260' }">{{ formatBytes(task.total_bytes) }}</div>
           </div>
           <div class="shrink-0">
-            <span class="text-xs tabular-nums" :style="{ color: '#22C55E' }">{{ progressPercent }}%</span>
+            <span class="text-xs tabular-nums" :style="{ color: '#4E7A5A' }">{{ progressPercent }}%</span>
           </div>
         </div>
-        <div v-else class="flex items-center justify-center h-full" :style="{ color: '#8E8E93' }">
+        <div v-else class="flex items-center justify-center h-full" :style="{ color: '#9C8260' }">
           <span class="text-sm">无文件信息</span>
         </div>
       </template>
@@ -183,17 +183,17 @@ function onDragEnd() {
           <div class="flex items-center gap-4 text-xs">
             <div class="flex items-center gap-1.5">
               <Circle class="h-2.5 w-2.5 fill-current" :style="{ color: 'var(--accent)' }" />
-              <span :style="{ color: '#A1A1A6' }">已完成</span>
+              <span :style="{ color: '#C9B393' }">已完成</span>
             </div>
             <div class="flex items-center gap-1.5">
-              <Circle class="h-2.5 w-2.5 fill-current" :style="{ color: '#22C55E' }" />
-              <span :style="{ color: '#A1A1A6' }">下载中</span>
+              <Circle class="h-2.5 w-2.5 fill-current" :style="{ color: '#4E7A5A' }" />
+              <span :style="{ color: '#C9B393' }">下载中</span>
             </div>
             <div class="flex items-center gap-1.5">
-              <Circle class="h-2.5 w-2.5 fill-current" :style="{ color: '#3A3A3C' }" />
-              <span :style="{ color: '#A1A1A6' }">等待中</span>
+              <Circle class="h-2.5 w-2.5 fill-current" :style="{ color: '#33271C' }" />
+              <span :style="{ color: '#C9B393' }">等待中</span>
             </div>
-            <span class="ml-auto tabular-nums" :style="{ color: '#8E8E93' }">
+            <span class="ml-auto tabular-nums" :style="{ color: '#9C8260' }">
               {{ task.segments || '—' }} 分段 · {{ task.speed > 0 ? '活跃' : '空闲' }}
             </span>
           </div>
@@ -219,15 +219,15 @@ function onDragEnd() {
 
           <!-- Progress overview bar -->
           <div class="mt-1">
-            <div class="flex items-center justify-between text-2xs mb-1" :style="{ color: '#8E8E93' }">
+            <div class="flex items-center justify-between text-2xs mb-1" :style="{ color: '#9C8260' }">
               <span>{{ formatBytes(task.downloaded_bytes) }} / {{ formatBytes(task.total_bytes) }}</span>
               <span>{{ progressPercent }}%</span>
             </div>
-            <div class="h-2 rounded-full overflow-hidden" :style="{ backgroundColor: '#3A3A3C' }">
+            <div class="h-2 rounded-full overflow-hidden" :style="{ backgroundColor: '#33271C' }">
               <div class="h-full rounded-full transition-all duration-300"
                 :style="{
                   width: progressPercent + '%',
-                  background: 'linear-gradient(90deg, var(--accent), #22C55E)',
+                  background: 'linear-gradient(90deg, var(--accent), #4E7A5A)',
                 }"
               ></div>
             </div>

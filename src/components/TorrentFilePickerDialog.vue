@@ -44,38 +44,36 @@ const selectedBytes = computed(() =>
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center" :style="{ backgroundColor: 'rgba(0,0,0,0.4)' }" @click.self="emit('close')">
-    <div class="flex w-full max-w-lg flex-col rounded-xl shadow-2xl" :style="{ backgroundColor: '#2C2C2E', border: '1px solid #48484A' }">
-      <!-- Title -->
-      <div class="flex items-center justify-between px-5 py-4" :style="{ borderBottom: '1px solid #3A3A3C' }">
+  <div class="fixed inset-0 z-50 flex items-center justify-center" :style="{ backgroundColor: 'rgba(0,0,0,0.5)' }" @click.self="emit('close')">
+    <div class="flex w-full max-w-lg flex-col rounded-xl shadow-2xl" :style="{ backgroundColor: '#261C14', border: '1px solid #5A4330' }">
+      <div class="flex items-center justify-between px-5 py-4" :style="{ borderBottom: '1px solid #5A4330' }">
         <div class="flex items-center gap-2.5 min-w-0">
-          <div class="flex h-7 w-7 items-center justify-center rounded-md shrink-0" :style="{ backgroundColor: 'rgba(var(--accent-rgb),0.18)' }">
+          <div class="flex h-7 w-7 items-center justify-center rounded shrink-0" :style="{ backgroundColor: 'rgba(var(--accent-rgb),0.18)' }">
             <HardDrive class="h-3.5 w-3.5" :style="{ color: 'var(--accent)' }" />
           </div>
           <div class="min-w-0">
-            <h2 class="text-sm font-semibold truncate" :style="{ color: '#F5F5F7' }">{{ meta.name }}</h2>
-            <span class="text-2xs" :style="{ color: '#8E8E93' }">{{ formatBytes(meta.total_bytes) }} · {{ meta.files.length }} 个文件</span>
+            <h2 class="text-sm font-semibold truncate" :style="{ color: '#EDE0C8' }">{{ meta.name }}</h2>
+            <span class="text-2xs" :style="{ color: '#9C8260' }">{{ formatBytes(meta.total_bytes) }} · {{ meta.files.length }} 个文件</span>
           </div>
         </div>
-        <button @click="emit('close')" class="rounded p-1 transition-colors shrink-0" :style="{ color: '#8E8E93' }">
+        <button @click="emit('close')" class="rounded p-1 transition-colors shrink-0" :style="{ color: '#9C8260' }">
           <X class="h-4 w-4" />
         </button>
       </div>
 
-      <!-- File list -->
       <div class="overflow-y-auto px-4 py-3" style="max-height: 50vh;">
-        <div class="flex items-center gap-2 px-2 py-1.5 rounded mb-1 cursor-pointer" :style="{ color: '#A1A1A6' }"
+        <div class="flex items-center gap-2 px-2 py-1.5 rounded mb-1 cursor-pointer" :style="{ color: '#C9B393' }"
           @click="toggleAll">
           <component :is="allSelected ? CheckSquare : Square" class="h-4 w-4" />
           <span class="text-xs font-medium">全选/取消</span>
           <span class="ml-auto text-2xs tabular-nums">{{ formatBytes(selectedBytes) }} / {{ formatBytes(meta.total_bytes) }}</span>
         </div>
-        <div :style="{ borderBottom: '1px solid #3A3A3C', margin: '4px 0' }"></div>
+        <div :style="{ borderBottom: '1px solid #5A4330', margin: '4px 0' }"></div>
         <div v-for="file in meta.files" :key="file.index"
           class="flex items-center gap-2 rounded px-2 py-1.5 cursor-pointer transition-colors"
-          :style="{ color: selected.has(file.index) ? '#F5F5F7' : '#8E8E93' }"
+          :style="{ color: selected.has(file.index) ? '#EDE0C8' : '#9C8260' }"
           @click="toggleFile(file.index)"
-          @mouseenter="$event.currentTarget.style.backgroundColor='#3A3A3C'"
+          @mouseenter="$event.currentTarget.style.backgroundColor='#33271C'"
           @mouseleave="$event.currentTarget.style.backgroundColor='transparent'"
         >
           <component :is="selected.has(file.index) ? CheckSquare : Square" class="h-3.5 w-3.5 shrink-0" />
@@ -84,18 +82,17 @@ const selectedBytes = computed(() =>
         </div>
       </div>
 
-      <!-- Actions -->
-      <div class="flex items-center justify-end gap-2 px-5 py-3" :style="{ borderTop: '1px solid #3A3A3C' }">
-        <span v-if="selected.size > 0" class="text-2xs mr-auto" :style="{ color: '#8E8E93' }">
+      <div class="flex items-center justify-end gap-2 px-5 py-3" :style="{ borderTop: '1px solid #5A4330' }">
+        <span v-if="selected.size > 0" class="text-2xs mr-auto" :style="{ color: '#9C8260' }">
           已选择 {{ selected.size }} 个文件 ({{ formatBytes(selectedBytes) }})
         </span>
         <button @click="emit('close')" class="rounded-md px-4 py-1.5 text-xs transition-colors"
-          :style="{ color: '#A1A1A6' }"
-          @mouseenter="$event.target.style.backgroundColor='#3A3A3C'"
+          :style="{ color: '#C9B393' }"
+          @mouseenter="$event.target.style.backgroundColor='#33271C'"
           @mouseleave="$event.target.style.backgroundColor='transparent'"
         >取消</button>
         <button @click="emit('confirm', Array.from(selected))" class="rounded-md px-4 py-1.5 text-xs transition-colors"
-          :style="{ backgroundColor: 'var(--accent)', color: '#FFFFFF' }"
+          :style="{ backgroundColor: 'var(--accent)', color: '#EDE0C8' }"
           @mouseenter="$event.target.style.opacity='0.9'"
           @mouseleave="$event.target.style.opacity='1'"
         >

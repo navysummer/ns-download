@@ -167,32 +167,32 @@ function formatEta(task: any): string {
 
 <template>
   <div class="flex h-full flex-col" @dragover="onDragOver" @drop="onDrop">
-    <div class="flex items-center gap-2 px-4 py-2.5" :style="{ borderBottom: '1px solid #3A3A3C' }">
+    <div class="flex items-center gap-2 px-4 py-2.5" :style="{ borderBottom: '1px solid #5A4330' }">
       <button
         v-for="tab in store.filterTabs" :key="tab.id"
         @click="store.activeFilter = tab.id"
         :class="['rounded-md px-3 py-1 text-sm transition-colors', store.activeFilter === tab.id ? '' : 'hover-bg']"
         :style="store.activeFilter === tab.id
-          ? { backgroundColor: 'var(--accent)', color: '#fff' }
-          : { color: '#8E8E93', backgroundColor: 'transparent' }"
+          ? { backgroundColor: 'var(--accent)', color: '#EDE0C8' }
+          : { color: '#9C8260', backgroundColor: 'transparent' }"
       >
         {{ tab.label }} ({{ tab.count }})
       </button>
       <div class="flex-1" />
       <button data-manage-mode :class="['rounded p-1.5 transition-colors', manageMode ? 'bg-blue-500/20 text-blue-500' : '']"
-        :style="{ color: manageMode ? 'var(--accent)' : '#8E8E93' }"
+        :style="{ color: manageMode ? 'var(--accent)' : '#9C8260' }"
         @click="manageMode = !manageMode; if (!manageMode) selectedIds = new Set()">
         <CheckSquare class="h-4 w-4" />
       </button>
-      <button v-if="store.settings.showTitlebarPauseAll" @click="store.pauseAll" class="rounded p-1.5 transition-colors" :style="{ color: '#8E8E93' }">
+      <button v-if="store.settings.showTitlebarPauseAll" @click="store.pauseAll" class="rounded p-1.5 transition-colors" :style="{ color: '#9C8260' }">
         <Pause class="h-4 w-4" />
       </button>
-      <button v-if="store.settings.showTitlebarResumeAll" @click="store.resumeAll" class="rounded p-1.5 transition-colors" :style="{ color: '#8E8E93' }">
+      <button v-if="store.settings.showTitlebarResumeAll" @click="store.resumeAll" class="rounded p-1.5 transition-colors" :style="{ color: '#9C8260' }">
         <Play class="h-4 w-4" />
       </button>
       <button @click="showNewDialog = true; droppedUrl = ''"
         class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
-        :style="{ backgroundColor: 'var(--accent)', color: '#fff' }">
+        :style="{ backgroundColor: 'var(--accent)', color: '#EDE0C8' }">
         <Plus class="h-3.5 w-3.5" /> 新建
       </button>
     </div>
@@ -201,39 +201,39 @@ function formatEta(task: any): string {
     <!-- Batch result toast -->
     <div v-if="batchResult"
       class="flex items-center justify-center px-4 py-1.5"
-      :style="{ backgroundColor: 'rgba(var(--accent-rgb),0.1)', borderBottom: '1px solid #3A3A3C' }"
+      :style="{ backgroundColor: 'rgba(var(--accent-rgb),0.1)', borderBottom: '1px solid #5A4330' }"
     >
       <span class="text-xs" :style="{ color: 'var(--accent)' }">{{ batchResult }}</span>
     </div>
 
     <div v-if="manageMode && selectedIds.size > 0"
       class="flex items-center gap-2 px-4 py-2"
-      :style="{ backgroundColor: 'rgba(var(--accent-rgb),0.1)', borderBottom: '1px solid #3A3A3C' }"
+      :style="{ backgroundColor: 'rgba(var(--accent-rgb),0.1)', borderBottom: '1px solid #5A4330' }"
     >
-      <span class="text-xs" :style="{ color: '#A1A1A6' }">已选择 {{ selectedIds.size }} 个任务</span>
+      <span class="text-xs" :style="{ color: '#C9B393' }">已选择 {{ selectedIds.size }} 个任务</span>
       <div class="flex-1"></div>
       <button @click="batchResume" class="rounded px-2 py-1 text-xs transition-colors"
-        :style="{ color: '#22C55E' }"><Play class="h-3 w-3 inline" /> 恢复</button>
+        :style="{ color: '#4E7A5A' }"><Play class="h-3 w-3 inline" /> 恢复</button>
       <button @click="batchPause" class="rounded px-2 py-1 text-xs transition-colors"
-        :style="{ color: '#F59E0B' }"><Pause class="h-3 w-3 inline" /> 暂停</button>
+        :style="{ color: '#C9A227' }"><Pause class="h-3 w-3 inline" /> 暂停</button>
       <button @click="showConfirmDelete = true" class="rounded px-2 py-1 text-xs transition-colors"
-        :style="{ color: '#EF4444' }"><Trash2 class="h-3 w-3 inline" /> 删除</button>
+        :style="{ color: '#B53A2E' }"><Trash2 class="h-3 w-3 inline" /> 删除</button>
       <div v-if="showBatchThreads" class="flex items-center gap-1">
         <input v-model.number="batchThreadsValue" type="number" min="1" max="128"
           class="w-14 rounded px-1.5 py-0.5 text-xs outline-none tabular-nums"
-          :style="{ backgroundColor: '#1C1C1E', border: '1px solid #48484A', color: '#F5F5F7' }"
+          :style="{ backgroundColor: '#1A120E', border: '1px solid #5A4330', color: '#EDE0C8' }"
           @keydown.enter="applyBatchThreads"
         />
         <button @click="applyBatchThreads" class="rounded px-1.5 py-0.5 text-2xs transition-colors"
-          :style="{ backgroundColor: 'var(--accent)', color: '#fff' }">应用</button>
+          :style="{ backgroundColor: 'var(--accent)', color: '#EDE0C8' }">应用</button>
         <button @click="showBatchThreads = false" class="rounded px-1 py-0.5 text-2xs transition-colors"
-          :style="{ color: '#8E8E93' }">取消</button>
+          :style="{ color: '#9C8260' }">取消</button>
       </div>
       <button v-else @click="showBatchThreads = true" class="rounded px-2 py-1 text-xs transition-colors"
-        :style="{ color: '#A1A1A6' }"><SlidersHorizontal class="h-3 w-3 inline" /> 线程</button>
+        :style="{ color: '#C9B393' }"><SlidersHorizontal class="h-3 w-3 inline" /> 线程</button>
       <select v-if="Object.keys(store.queueStates).length > 0" v-model="batchQueueId"
         class="rounded-md px-2 py-1 text-xs outline-none"
-        :style="{ backgroundColor: '#1C1C1E', border: '1px solid #48484A', color: '#A1A1A6' }"
+        :style="{ backgroundColor: '#1A120E', border: '1px solid #5A4330', color: '#C9B393' }"
         @change="batchMoveToQueue"
       >
         <option value="">移动到队列...</option>
@@ -267,20 +267,20 @@ function formatEta(task: any): string {
     <!-- Batch delete confirmation -->
     <div v-if="showConfirmDelete"
       class="fixed inset-0 z-50 flex items-center justify-center"
-      :style="{ backgroundColor: 'rgba(0,0,0,0.4)' }"
+      :style="{ backgroundColor: 'rgba(0,0,0,0.5)' }"
       @click.self="showConfirmDelete = false"
     >
-      <div class="w-80 rounded-xl p-5 shadow-2xl" :style="{ backgroundColor: '#2C2C2E', border: '1px solid #48484A' }">
-        <h3 class="text-sm font-semibold mb-2" :style="{ color: '#F5F5F7' }">确认删除</h3>
-        <p class="text-sm mb-4" :style="{ color: '#A1A1A6' }">确定要删除选中的 {{ selectedIds.size }} 个任务吗？此操作不可撤销。</p>
+      <div class="w-80 rounded-xl p-5 shadow-2xl" :style="{ backgroundColor: '#261C14', border: '1px solid #5A4330' }">
+        <h3 class="text-sm font-semibold mb-2 font-kai" :style="{ color: '#EDE0C8' }">确认删除</h3>
+        <p class="text-sm mb-4" :style="{ color: '#C9B393' }">确定要删除选中的 {{ selectedIds.size }} 个任务吗？此操作不可撤销。</p>
         <div class="flex justify-end gap-2">
           <button @click="showConfirmDelete = false" class="rounded-md px-4 py-1.5 text-xs transition-colors"
-            :style="{ color: '#A1A1A6' }"
-            @mouseenter="$event.target.style.backgroundColor='#3A3A3C'"
+            :style="{ color: '#C9B393' }"
+            @mouseenter="$event.target.style.backgroundColor='#33271C'"
             @mouseleave="$event.target.style.backgroundColor='transparent'"
           >取消</button>
           <button @click="confirmBatchDelete" class="rounded-md px-4 py-1.5 text-xs transition-colors"
-            :style="{ backgroundColor: '#EF4444', color: '#fff' }"
+            :style="{ backgroundColor: '#B53A2E', color: '#EDE0C8' }"
             @mouseenter="$event.target.style.opacity='0.9'"
             @mouseleave="$event.target.style.opacity='1'"
           >删除</button>
