@@ -201,15 +201,23 @@ onMounted(async () => {
 
     // Apply theme
     watch(() => [store.settings.theme, store.settings.accentColor], () => applyTheme(), { immediate: true });
-    function applyTheme() {
+function applyTheme() {
       const root = document.documentElement;
       const isLight = store.settings.theme === 'classic-light' || store.settings.theme === 'light';
-      root.style.setProperty('--app-bg', isLight ? '#F5F0E8' : '#1A120E');
-      root.style.setProperty('--surface-bg', isLight ? '#FFFFFF' : '#261C14');
-      root.style.setProperty('--surface-bg2', isLight ? '#EDE4D8' : '#33271C');
-      root.style.setProperty('--surface-border', isLight ? '#D4C8B8' : '#5A4330');
+      root.style.setProperty('--app-bg', isLight ? '#F5F0E8' : '#2A1F16');
+      root.style.setProperty('--surface-bg', isLight ? '#FFFFFF' : '#3A2C20');
+      root.style.setProperty('--surface-bg-rgb', isLight ? '255,255,255' : '58,44,32');
+      root.style.setProperty('--surface-bg2', isLight ? '#EDE4D8' : '#4A3A2C');
+      root.style.setProperty('--surface-bg3', isLight ? '#D9CCBC' : '#5A4838');
+      root.style.setProperty('--surface-dark', isLight ? '#E8DFD2' : '#2E2218');
+      root.style.setProperty('--surface-border', isLight ? '#D4C8B8' : '#6E543C');
       root.style.setProperty('--text-primary', isLight ? '#2C1F14' : '#EDE0C8');
       root.style.setProperty('--text-secondary', isLight ? '#8C7358' : '#C9B393');
+      root.style.setProperty('--text-muted', isLight ? '#A08A6E' : '#9C8260');
+      root.style.setProperty('--text-muted-rgb', isLight ? '160,138,110' : '156,130,96');
+      root.style.setProperty('--success', isLight ? '#4E7A5A' : '#5A8E62');
+      root.style.setProperty('--gold', isLight ? '#B8860B' : '#E0BA3A');
+      root.style.setProperty('--danger', isLight ? '#C0392B' : '#D64531');
       root.style.setProperty('--accent', accentHex(store.settings.accentColor));
       root.style.setProperty('--accent-rgb', accentRgb(store.settings.accentColor));
       root.style.setProperty('--ui-scale', `${store.settings.uiScale / 100}`);
@@ -217,11 +225,11 @@ onMounted(async () => {
     function accentHex(val: string): string {
       const m: Record<string, string> = {
         blue: '#3B82F6', green: '#22C55E', orange: '#F97316',
-        purple: '#8B5CF6', pink: '#EC4899', red: '#EF4444',
+        purple: '#8B5CF6', pink: '#EC4899', red: '#D64531',
         teal: '#14B8A6', yellow: '#EAB308', cyan: '#06B6D4',
         '#3B82F6': '#3B82F6', '#22C55E': '#22C55E', '#F97316': '#F97316',
         '#06B6D4': '#06B6D4', '#8B5CF6': '#8B5CF6',
-        '#EC4899': '#EC4899', '#EF4444': '#EF4444', '#EAB308': '#EAB308',
+        '#EC4899': '#EC4899', '#D64531': '#D64531', '#EAB308': '#EAB308',
       };
       return m[val] || '#3B82F6';
     }
@@ -400,33 +408,33 @@ function onWindowDrop(e: DragEvent) {
 </script>
 
 <template>
-  <div class="flex h-screen flex-col" :style="{ backgroundColor: '#1A120E', color: '#EDE0C8', zoom: `${store.settings.uiScale}%` }">
+  <div class="flex h-screen flex-col" :style="{ backgroundColor: 'var(--app-bg)', color: 'var(--text-primary)', zoom: `${store.settings.uiScale}%` }">
     <div class="flex flex-1 overflow-hidden">
       <Sidebar />
       <div class="flex flex-1 flex-col overflow-hidden">
         <!-- Header Bar (40px) - 古风卷轴顶栏 -->
-        <header class="flex items-center gap-3 px-4" :style="{ height: '40px', borderBottom: '1px solid #5A4330', backgroundColor: '#261C14' }">
+        <header class="flex items-center gap-3 px-4" :style="{ height: '40px', borderBottom: '1px solid var(--surface-border)', backgroundColor: 'var(--surface-bg)' }">
           <!-- Search bar -->
           <div class="relative flex-1" style="max-width: 320px;">
             <div class="flex items-center rounded-md px-2.5 transition-colors"
               :style="{
-                backgroundColor: searchFocused ? 'rgba(var(--accent-rgb),0.08)' : '#1A120E',
-                border: `1px solid ${searchFocused ? 'var(--accent)' : '#5A4330'}`,
+                backgroundColor: searchFocused ? 'rgba(var(--accent-rgb),0.08)' : 'var(--app-bg)',
+                border: `1px solid ${searchFocused ? 'var(--accent)' : 'var(--surface-border)'}`,
                 height: '30px',
               }"
             >
-              <Search class="h-3.5 w-3.5 shrink-0" :style="{ color: searchFocused ? 'var(--accent)' : '#9C8260' }" />
+              <Search class="h-3.5 w-3.5 shrink-0" :style="{ color: searchFocused ? 'var(--accent)' : 'var(--text-muted)' }" />
               <input
                 v-model="store.searchQuery"
                 placeholder="搜索任务…"
                 class="ml-2 flex-1 bg-transparent text-sm outline-none"
-                :style="{ color: '#EDE0C8' }"
+                :style="{ color: 'var(--text-primary)' }"
                 @focus="searchFocused = true"
                 @blur="searchFocused = false"
               />
               <span v-if="!searchFocused && !store.searchQuery"
                 class="rounded px-1.5 py-0.5 text-2xs font-medium"
-                :style="{ backgroundColor: '#33271C', color: '#9C8260', border: '1px solid #5A4330' }"
+                :style="{ backgroundColor: 'var(--surface-bg2)', color: 'var(--text-muted)', border: '1px solid var(--surface-border)' }"
               >Ctrl+F</span>
             </div>
           </div>
@@ -437,7 +445,7 @@ function onWindowDrop(e: DragEvent) {
           <button v-if="store.settings.showTitlebarSettings"
             @click="router.push('/settings')"
             class="flex items-center justify-center rounded p-1.5 transition-colors hover-bg"
-            :style="{ color: '#9C8260', width: '36px', height: '36px' }"
+            :style="{ color: 'var(--text-muted)', width: '36px', height: '36px' }"
           >
             <Settings class="h-4 w-4" />
           </button>
@@ -458,11 +466,11 @@ function onWindowDrop(e: DragEvent) {
       :style="{ backgroundColor: 'rgba(181,58,46,0.12)' }"
     >
       <div class="rounded-2xl px-8 py-6 text-center"
-        :style="{ backgroundColor: 'rgba(38,28,20,0.95)', border: '2px dashed var(--accent)' }"
+        :style="{ backgroundColor: 'rgba(var(--surface-bg-rgb),0.95)', border: '2px dashed var(--accent)' }"
       >
         <Download class="mx-auto h-8 w-8 mb-2" :style="{ color: 'var(--accent)' }" />
-        <div class="text-sm font-medium" :style="{ color: '#EDE0C8' }">释放链接以下载</div>
-        <div class="text-xs mt-1" :style="{ color: '#9C8260' }">支持 HTTP/HTTPS/FTP/Magnet 链接</div>
+        <div class="text-sm font-medium" :style="{ color: 'var(--text-primary)' }">释放链接以下载</div>
+        <div class="text-xs mt-1" :style="{ color: 'var(--text-muted)' }">支持 HTTP/HTTPS/FTP/Magnet 链接</div>
       </div>
     </div>
   </div>

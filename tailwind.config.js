@@ -4,14 +4,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Ancient Chinese ink-wash (古风水墨) theme tokens
+        // Ancient Chinese ink-wash (古风水墨) theme tokens - 明亮版
         ink: {
-          DEFAULT: '#1A1109',   // 深墨 background
-          deep: '#241A10',      // 深木 surface
-          wood: '#33271C',      // 木纹 surface 2
-          grain: '#423122',     // 木纹 surface 3
-          border: '#5A4330',    // 边框
-          light: '#6E543C',
+          DEFAULT: '#2A1F16',   // 暖褐 background
+          deep: '#3A2C20',      // 暖木 surface
+          wood: '#4A3A2C',      // 木纹 surface 2
+          grain: '#5A4838',     // 木纹 surface 3
+          border: '#6E543C',    // 边框
+          light: '#8A6E54',
         },
         parchment: {
           DEFAULT: '#EDE0C8',  // 宣纸 text primary
@@ -20,21 +20,21 @@ export default {
           dim: '#6E5A42',
         },
         vermilion: {
-          DEFAULT: '#B53A2E',  // 朱砂 accent
-          light: '#D05547',
-          dark: '#8E2B22',
+          DEFAULT: '#D64531',  // 朱砂 accent（更亮）
+          light: '#E86A58',
+          dark: '#B5331F',
         },
         gold: {
-          DEFAULT: '#C9A227',  // 描金
-          light: '#E0C25C',
+          DEFAULT: '#E0BA3A',  // 描金（更亮）
+          light: '#F0D060',
         },
         jade: {
-          DEFAULT: '#4E7A5A',  // 青玉 success
-          light: '#6B9A74',
+          DEFAULT: '#5A8E62',  // 青玉 success（更亮）
+          light: '#78A87E',
         },
         element: {
-          hover: '#423122',
-          selected: '#33271C',
+          hover: '#5A4838',
+          selected: '#4A3A2C',
         },
         text: {
           primary: '#EDE0C8',

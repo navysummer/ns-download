@@ -74,22 +74,22 @@ function isTabActive(tab: typeof statusTabs[number]): boolean {
 function navStyle(selected: boolean) {
   return selected
     ? { backgroundColor: 'rgba(var(--accent-rgb),0.18)', color: 'var(--accent)', fontWeight: 500 }
-    : { backgroundColor: 'transparent', color: '#C9B393', fontWeight: 400 };
+    : { backgroundColor: 'transparent', color: 'var(--text-secondary)', fontWeight: 400 };
 }
 </script>
 
 <template>
-  <aside :style="{ backgroundColor: '#261C14', borderRight: '1px solid #5A4330' }"
+  <aside :style="{ backgroundColor: 'var(--surface-bg)', borderRight: '1px solid var(--surface-border)' }"
     class="flex w-56 flex-col overflow-hidden select-none">
-    <div :style="{ borderBottom: '1px solid #5A4330' }" class="flex items-center gap-2 px-4 py-3">
-      <div class="seal-badge h-5 w-5 rounded text-xs" :style="{ backgroundColor: '#B53A2E', color: '#EDE0C8' }">载</div>
-      <span :style="{ color: '#EDE0C8' }" class="font-kai text-sm font-semibold tracking-widest">云舟下载</span>
-      <span :style="{ color: '#C9A227' }" class="text-2xs font-seal">· 水墨雅集</span>
+    <div :style="{ borderBottom: '1px solid var(--surface-border)' }" class="flex items-center gap-2 px-4 py-3">
+      <div class="seal-badge h-5 w-5 rounded text-xs" :style="{ backgroundColor: '#D64531', color: 'var(--text-primary)' }">载</div>
+      <span :style="{ color: 'var(--text-primary)' }" class="font-kai text-sm font-semibold tracking-widest">云舟下载</span>
+      <span :style="{ color: 'var(--gold)' }" class="text-2xs font-seal">· 水墨雅集</span>
     </div>
 
     <nav class="flex-1 overflow-y-auto px-2 py-3">
       <!-- Status section header -->
-      <div v-if="store.settings.showSidebarStatus" :style="{ color: '#9C8260' }" class="mb-1 px-2 text-2xs font-semibold uppercase tracking-wider" style="letter-spacing: 0.5px;">状态</div>
+      <div v-if="store.settings.showSidebarStatus" :style="{ color: 'var(--text-muted)' }" class="mb-1 px-2 text-2xs font-semibold uppercase tracking-wider" style="letter-spacing: 0.5px;">状态</div>
 
       <!-- Status tabs -->
       <template v-if="store.settings.showSidebarStatus">
@@ -102,19 +102,19 @@ function navStyle(selected: boolean) {
           <span class="relative flex shrink-0">
             <component :is="tab.icon" class="h-4 w-4" />
             <span v-if="tab.key === 'downloading' && activeCount > 0"
-              :style="{ backgroundColor: '#4E7A5A', borderColor: '#261C14' }"
+              :style="{ backgroundColor: 'var(--success)', borderColor: 'var(--surface-bg)' }"
               class="absolute -right-1.5 -top-1.5 h-1.5 w-1.5 rounded-full border"
             ></span>
           </span>
           <span class="flex-1 text-left">{{ tab.label }}</span>
-          <span :style="{ color: '#9C8260' }" class="text-2xs tabular-nums">{{ tabCount(tab.key) }}</span>
+          <span :style="{ color: 'var(--text-muted)' }" class="text-2xs tabular-nums">{{ tabCount(tab.key) }}</span>
         </button>
       </template>
 
       <!-- Queues section -->
       <div v-if="store.settings.showSidebarQueues" class="mt-4 mb-1 px-2">
         <div class="hover-text-secondary flex cursor-pointer items-center justify-between rounded px-1 py-1 transition-colors"
-          :style="{ color: '#9C8260' }"
+          :style="{ color: 'var(--text-muted)' }"
           @click="queuesExpanded = !queuesExpanded"
         >
           <div class="flex items-center gap-1">
@@ -138,26 +138,26 @@ function navStyle(selected: boolean) {
 
           <template v-if="hoveredQueue === q.id">
             <span class="flex gap-0.5">
-              <button @click.stop="store.toggleQueue(q.id)" class="rounded p-0.5" :style="{ color: '#9C8260' }">
+              <button @click.stop="store.toggleQueue(q.id)" class="rounded p-0.5" :style="{ color: 'var(--text-muted)' }">
                 <component :is="q.running ? Pause : Play" class="h-3 w-3" />
               </button>
-              <button @click.stop="showQueueManager = true" class="rounded p-0.5" :style="{ color: '#9C8260' }">
+              <button @click.stop="showQueueManager = true" class="rounded p-0.5" :style="{ color: 'var(--text-muted)' }">
                 <SlidersHorizontal class="h-3 w-3" />
               </button>
             </span>
           </template>
           <template v-else>
-            <span :style="{ color: '#9C8260' }" class="text-2xs tabular-nums">{{ store.queueTaskCounts[q.id] ?? 0 }}</span>
+            <span :style="{ color: 'var(--text-muted)' }" class="text-2xs tabular-nums">{{ store.queueTaskCounts[q.id] ?? 0 }}</span>
           </template>
 
-          <Circle :style="{ color: q.running ? '#4E7A5A' : '#9C8260' }" class="h-1.5 w-1.5 fill-current" />
+          <Circle :style="{ color: q.running ? 'var(--success)' : 'var(--text-muted)' }" class="h-1.5 w-1.5 fill-current" />
         </div>
       </template>
 
       <!-- Categories section -->
       <div v-if="store.settings.showSidebarCategory" class="mt-4 mb-1 px-2">
         <div class="hover-text-secondary flex cursor-pointer items-center justify-between rounded px-1 py-1 transition-colors"
-          :style="{ color: '#9C8260' }"
+          :style="{ color: 'var(--text-muted)' }"
           @click="categoriesExpanded = !categoriesExpanded"
         >
           <div class="flex items-center gap-1">
@@ -176,7 +176,7 @@ function navStyle(selected: boolean) {
         >
           <component :is="cat.icon" class="h-3.5 w-3.5 shrink-0" />
           <span class="flex-1 truncate text-xs">{{ cat.label }}</span>
-          <span :style="{ color: '#9C8260' }" class="text-2xs tabular-nums">{{ store.categoryCount(cat.id) }}</span>
+          <span :style="{ color: 'var(--text-muted)' }" class="text-2xs tabular-nums">{{ store.categoryCount(cat.id) }}</span>
         </div>
       </template>
     </nav>

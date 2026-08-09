@@ -31,8 +31,8 @@ fn setup_tray(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     TrayIconBuilder::new()
         .icon(icon)
-        .icon_as_template(true)
-        .tooltip("ns-download")
+        .icon_as_template(false)
+        .tooltip("云舟下载")
         .menu(&menu)
         .on_tray_icon_event(|tray, event| {
             if let TrayIconEvent::Click {
