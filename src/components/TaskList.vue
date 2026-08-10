@@ -100,8 +100,11 @@ function extBadge(name: string): string {
 
 <template>
   <div class="h-full overflow-y-auto">
-    <div v-if="tasks.length === 0" class="flex h-full items-center justify-center" :style="{ color: 'var(--text-muted)' }">
-      暂无任务
+    <div v-if="tasks.length === 0" class="flex h-full flex-col items-center justify-center gap-3" :style="{ color: 'var(--text-muted)' }">
+      <div class="h-12 w-12 rounded-full gold-border flex items-center justify-center">
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 12a3.5 3.5 0 1 1 3.3-4.6A4.5 4.5 0 1 1 12 12.5"/><line x1="12" y1="12" x2="12" y2="20"/><polyline points="8,16 12,20 16,16"/></svg>
+      </div>
+      <span class="text-sm spacing-2 font-kai" :style="{ color: 'var(--text-secondary)' }">卷帘以待 · 尚无任务</span>
     </div>
     <div v-else>
       <!-- Select All header -->
@@ -114,12 +117,12 @@ function extBadge(name: string): string {
           全选
         </label>
       </div>
-      <table :style="{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }">
-        <thead class="text-2xs font-medium uppercase tracking-wider select-none"
-          :style="{ color: 'var(--text-muted)', backgroundColor: 'var(--surface-dark)' }"
+<table :style="{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse' }">
+        <thead class="text-2xs font-medium select-none spacing-1"
+          :style="{ color: 'var(--text-muted)', backgroundColor: 'var(--surface-bg)' }"
         >
           <tr :style="{ height: '28px' }">
-            <th :style="{ width: '200px', padding: '0 4px', borderBottom: '1px solid var(--surface-border)', verticalAlign: 'middle', fontWeight: 'inherit', textAlign: 'left' }">
+            <th :style="{ width: '200px', padding: '0 8px', borderBottom: '1px solid var(--surface-border)', verticalAlign: 'middle', fontWeight: 'inherit', textAlign: 'left' }">
               <button @click="store.setSort('file_name')" class="flex items-center gap-1 hover-text transition-colors w-full text-left truncate">
                 文件
                 <ArrowUpDown v-if="store.sortField !== 'file_name'" class="h-2.5 w-2.5 shrink-0 opacity-40" />
@@ -127,7 +130,7 @@ function extBadge(name: string): string {
                 <ArrowDownWideNarrow v-else class="h-2.5 w-2.5 shrink-0" />
               </button>
             </th>
-            <th :style="{ width: '150px', padding: '0 4px', borderBottom: '1px solid var(--surface-border)', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
+            <th :style="{ width: '150px', padding: '0 8px', borderBottom: '1px solid var(--surface-border)', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
               <button @click="store.setSort('downloaded_bytes')" class="inline-flex items-center justify-center gap-1 hover-text transition-colors">
                 进度
                 <ArrowUpDown v-if="store.sortField !== 'downloaded_bytes'" class="h-2.5 w-2.5 opacity-40" />
@@ -135,13 +138,13 @@ function extBadge(name: string): string {
                 <ArrowDownWideNarrow v-else class="h-2.5 w-2.5" />
               </button>
             </th>
-            <th :style="{ width: '85px', padding: '0 4px', borderBottom: '1px solid var(--surface-border)', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
-              <span class="text-2xs font-medium uppercase tracking-wider" :style="{ color: 'var(--text-muted)' }">已下载</span>
+            <th :style="{ width: '85px', padding: '0 8px', borderBottom: '1px solid var(--surface-border)', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
+              <span class="text-2xs font-medium" :style="{ color: 'var(--text-muted)' }">已下载</span>
             </th>
-            <th :style="{ width: '85px', padding: '0 4px', borderBottom: '1px solid var(--surface-border)', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
-              <span class="text-2xs font-medium uppercase tracking-wider" :style="{ color: 'var(--text-muted)' }">大小</span>
+            <th :style="{ width: '85px', padding: '0 8px', borderBottom: '1px solid var(--surface-border)', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
+              <span class="text-2xs font-medium" :style="{ color: 'var(--text-muted)' }">大小</span>
             </th>
-            <th :style="{ width: '90px', padding: '0 4px', borderBottom: '1px solid var(--surface-border)', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
+            <th :style="{ width: '90px', padding: '0 8px', borderBottom: '1px solid var(--surface-border)', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
               <button @click="store.setSort('speed')" class="inline-flex items-center justify-center gap-1 hover-text transition-colors">
                 速度
                 <ArrowUpDown v-if="store.sortField !== 'speed'" class="h-2.5 w-2.5 opacity-40" />
@@ -149,10 +152,10 @@ function extBadge(name: string): string {
                 <ArrowDownWideNarrow v-else class="h-2.5 w-2.5" />
               </button>
             </th>
-            <th :style="{ width: '80px', padding: '0 4px', borderBottom: '1px solid var(--surface-border)', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
-              <span class="text-2xs font-medium uppercase tracking-wider" :style="{ color: 'var(--text-muted)' }">剩余</span>
+            <th :style="{ width: '80px', padding: '0 8px', borderBottom: '1px solid var(--surface-border)', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
+              <span class="text-2xs font-medium" :style="{ color: 'var(--text-muted)' }">剩余</span>
             </th>
-            <th :style="{ width: '60px', padding: '0 4px', borderBottom: '1px solid var(--surface-border)', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
+            <th :style="{ width: '60px', padding: '0 8px', borderBottom: '1px solid var(--surface-border)', textAlign: 'center', verticalAlign: 'middle', fontWeight: 'inherit' }">
               <button @click="store.setSort('status')" class="inline-flex items-center justify-center gap-1 hover-text transition-colors">
                 状态
                 <ArrowUpDown v-if="store.sortField !== 'status'" class="h-2.5 w-2.5 opacity-40" />
@@ -160,7 +163,7 @@ function extBadge(name: string): string {
                 <ArrowDownWideNarrow v-else class="h-2.5 w-2.5" />
               </button>
             </th>
-            <th :style="{ width: '72px', padding: '0 4px', borderBottom: '1px solid var(--surface-border)', verticalAlign: 'middle', fontWeight: 'inherit' }"></th>
+            <th :style="{ width: '72px', padding: '0 8px', borderBottom: '1px solid var(--surface-border)', verticalAlign: 'middle', fontWeight: 'inherit' }"></th>
           </tr>
         </thead>
         <tbody>
@@ -180,7 +183,7 @@ function extBadge(name: string): string {
               <div class="flex items-center gap-2 overflow-hidden">
                 <input v-if="manageMode" type="checkbox"
                   :checked="selectedIds?.has(task.id)"
-                  @click.stop="emit('toggle-select', task.id)"
+                 @click.stop="emit('toggle-select', task.id)"
                   class="h-4 w-4 shrink-0"
                   :style="{ accentColor: 'var(--accent)' }"
                 />
@@ -241,13 +244,13 @@ function extBadge(name: string): string {
             <!-- Actions -->
             <td :style="{ width: '72px', padding: '0 4px', verticalAlign: 'middle' }">
               <div class="flex items-center justify-center gap-0.5">
-                <button v-if="task.status === 2" @click.stop="store.resumeTask(task.id)" class="rounded p-1.5 transition-colors" :style="{ color: 'var(--text-muted)' }">
+                <button v-if="task.status === 2" @click="store.resumeTask(task.id)" class="rounded p-1.5 transition-colors" :style="{ color: 'var(--text-muted)' }">
                   <Play class="h-3.5 w-3.5" />
                 </button>
-                <button v-else-if="task.status === 1" @click.stop="store.pauseTask(task.id)" class="rounded p-1.5 transition-colors" :style="{ color: 'var(--text-muted)' }">
+                <button v-else-if="task.status === 1" @click="store.pauseTask(task.id)" class="rounded p-1.5 transition-colors" :style="{ color: 'var(--text-muted)' }">
                   <Pause class="h-3.5 w-3.5" />
                 </button>
-                <button @click.stop="onDeleteClick(task)" class="rounded p-1.5 transition-colors" :style="{ color: 'var(--text-muted)' }">
+                <button @click="onDeleteClick(task)" class="rounded p-1.5 transition-colors" :style="{ color: 'var(--text-muted)' }">
                   <Trash2 class="h-3.5 w-3.5" />
                 </button>
               </div>

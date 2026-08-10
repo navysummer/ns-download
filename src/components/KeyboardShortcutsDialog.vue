@@ -21,13 +21,13 @@ function kbd(keys: string[]) {
 <template>
   <div class="fixed inset-0 z-50 flex items-center justify-center"
     :style="{ backgroundColor: 'rgba(0,0,0,0.5)' }"
-    @click.self="emit('close')"
+    @click="emit('close')"
   >
-    <div :style="{ backgroundColor: 'var(--surface-bg)', border: '1px solid var(--surface-border)', borderRadius: '12px', width: '340px' }" class="shadow-2xl">
+    <div :style="{ backgroundColor: 'var(--surface-bg)', border: '1px solid var(--surface-border)', borderRadius: '12px', width: '340px' }" class="shadow-2xl @click.stop">
       <div class="flex items-center justify-between px-4 py-3" :style="{ borderBottom: '1px solid var(--surface-border)' }">
         <div class="flex items-center gap-2">
           <CmdIcon class="h-4 w-4" :style="{ color: 'var(--text-muted)' }" />
-          <span class="text-sm font-semibold" :style="{ color: 'var(--text-primary)' }">键盘快捷键</span>
+          <span class="text-sm font-semibold spacing-2" :style="{ color: 'var(--text-primary)' }">键盘快捷键</span>
         </div>
         <button @click="emit('close')" class="rounded p-1 transition-colors" :style="{ color: 'var(--text-muted)' }">
           <X class="h-4 w-4" />

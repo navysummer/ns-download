@@ -204,20 +204,20 @@ onMounted(async () => {
 function applyTheme() {
       const root = document.documentElement;
       const isLight = store.settings.theme === 'classic-light' || store.settings.theme === 'light';
-      root.style.setProperty('--app-bg', isLight ? '#F5F0E8' : '#2A1F16');
-      root.style.setProperty('--surface-bg', isLight ? '#FFFFFF' : '#3A2C20');
-      root.style.setProperty('--surface-bg-rgb', isLight ? '255,255,255' : '58,44,32');
-      root.style.setProperty('--surface-bg2', isLight ? '#EDE4D8' : '#4A3A2C');
-      root.style.setProperty('--surface-bg3', isLight ? '#D9CCBC' : '#5A4838');
-      root.style.setProperty('--surface-dark', isLight ? '#E8DFD2' : '#2E2218');
-      root.style.setProperty('--surface-border', isLight ? '#D4C8B8' : '#6E543C');
-      root.style.setProperty('--text-primary', isLight ? '#2C1F14' : '#EDE0C8');
-      root.style.setProperty('--text-secondary', isLight ? '#8C7358' : '#C9B393');
-      root.style.setProperty('--text-muted', isLight ? '#A08A6E' : '#9C8260');
-      root.style.setProperty('--text-muted-rgb', isLight ? '160,138,110' : '156,130,96');
-      root.style.setProperty('--success', isLight ? '#4E7A5A' : '#5A8E62');
-      root.style.setProperty('--gold', isLight ? '#B8860B' : '#E0BA3A');
-      root.style.setProperty('--danger', isLight ? '#C0392B' : '#D64531');
+      root.style.setProperty('--app-bg', isLight ? '#f0e6d2' : '#0f0d0a');
+      root.style.setProperty('--surface-bg', isLight ? '#faf6ef' : '#17130d');
+      root.style.setProperty('--surface-bg-rgb', isLight ? '250,246,239' : '23,19,13');
+      root.style.setProperty('--surface-bg2', isLight ? '#ede4d8' : '#211a11');
+      root.style.setProperty('--surface-bg3', isLight ? '#e0d4c4' : '#2a2116');
+      root.style.setProperty('--surface-dark', isLight ? '#e8dfd2' : 'rgba(38,29,18,0.6)');
+      root.style.setProperty('--surface-border', isLight ? 'rgba(139,114,80,0.2)' : 'rgba(219,181,121,0.14)');
+      root.style.setProperty('--text-primary', isLight ? '#2c1f14' : '#f0e6d2');
+      root.style.setProperty('--text-secondary', isLight ? '#8c7358' : '#b8a98c');
+      root.style.setProperty('--text-muted', isLight ? '#a08a6e' : '#8a7c63');
+      root.style.setProperty('--text-muted-rgb', isLight ? '160,138,110' : '138,124,99');
+      root.style.setProperty('--success', isLight ? '#4e7a5a' : '#6f9b8a');
+      root.style.setProperty('--gold', isLight ? '#b8860b' : '#c9a25f');
+      root.style.setProperty('--danger', isLight ? '#c0392b' : '#b0564a');
       root.style.setProperty('--accent', accentHex(store.settings.accentColor));
       root.style.setProperty('--accent-rgb', accentRgb(store.settings.accentColor));
       root.style.setProperty('--ui-scale', `${store.settings.uiScale / 100}`);
@@ -291,14 +291,6 @@ function applyTheme() {
         console.warn("Failed to set badge count:", e);
       }
     }, { immediate: true });
-
-    // Close to tray
-    unlistens.push(await mainWindow.onCloseRequested(async (event) => {
-      if (store.settings.closeToTray) {
-        event.preventDefault();
-        await mainWindow.hide();
-      }
-    }));
 
     // Start minimized
     if (store.settings.startMinimized) {
@@ -412,13 +404,13 @@ function onWindowDrop(e: DragEvent) {
     <div class="flex flex-1 overflow-hidden">
       <Sidebar />
       <div class="flex flex-1 flex-col overflow-hidden">
-        <!-- Header Bar (40px) - 古风卷轴顶栏 -->
+        <!-- Header Bar (40px) -->
         <header class="flex items-center gap-3 px-4" :style="{ height: '40px', borderBottom: '1px solid var(--surface-border)', backgroundColor: 'var(--surface-bg)' }">
           <!-- Search bar -->
           <div class="relative flex-1" style="max-width: 320px;">
-            <div class="flex items-center rounded-md px-2.5 transition-colors"
+            <div class="flex items-center rounded-lg px-2.5 transition-colors"
               :style="{
-                backgroundColor: searchFocused ? 'rgba(var(--accent-rgb),0.08)' : 'var(--app-bg)',
+                backgroundColor: searchFocused ? 'rgba(var(--accent-rgb),0.06)' : 'var(--app-bg)',
                 border: `1px solid ${searchFocused ? 'var(--accent)' : 'var(--surface-border)'}`,
                 height: '30px',
               }"
@@ -444,7 +436,7 @@ function onWindowDrop(e: DragEvent) {
           <!-- Settings -->
           <button v-if="store.settings.showTitlebarSettings"
             @click="router.push('/settings')"
-            class="flex items-center justify-center rounded p-1.5 transition-colors hover-bg"
+            class="flex items-center justify-center rounded-lg p-1.5 transition-colors hover-bg"
             :style="{ color: 'var(--text-muted)', width: '36px', height: '36px' }"
           >
             <Settings class="h-4 w-4" />

@@ -86,6 +86,12 @@ pub fn run() {
             engine: Arc::new(Mutex::new(None)),
             api_server_shutdown: Mutex::new(None),
         })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                window.app_handle().exit(0);
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::init_engine,
             commands::get_tasks,

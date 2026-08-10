@@ -44,8 +44,8 @@ const selectedBytes = computed(() =>
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center" :style="{ backgroundColor: 'rgba(0,0,0,0.5)' }" @click.self="emit('close')">
-    <div class="flex w-full max-w-lg flex-col rounded-xl shadow-2xl" :style="{ backgroundColor: 'var(--surface-bg)', border: '1px solid var(--surface-border)' }">
+  <div class="fixed inset-0 z-50 flex items-center justify-center" :style="{ backgroundColor: 'rgba(0,0,0,0.5)' }" @click="emit('close')">
+    <div class="flex w-full max-w-lg flex-col rounded-xl shadow-2xl @click.stop" :style="{ backgroundColor: 'var(--surface-bg)', border: '1px solid var(--surface-border)' }">
       <div class="flex items-center justify-between px-5 py-4" :style="{ borderBottom: '1px solid var(--surface-border)' }">
         <div class="flex items-center gap-2.5 min-w-0">
           <div class="flex h-7 w-7 items-center justify-center rounded shrink-0" :style="{ backgroundColor: 'rgba(var(--accent-rgb),0.18)' }">
@@ -56,7 +56,7 @@ const selectedBytes = computed(() =>
             <span class="text-2xs" :style="{ color: 'var(--text-muted)' }">{{ formatBytes(meta.total_bytes) }} · {{ meta.files.length }} 个文件</span>
           </div>
         </div>
-        <button @click="emit('close')" class="rounded p-1 transition-colors shrink-0" :style="{ color: 'var(--text-muted)' }">
+        <button @click="emit('close')"  class="rounded p-1 transition-colors shrink-0" :style="{ color: 'var(--text-muted)' }">
           <X class="h-4 w-4" />
         </button>
       </div>

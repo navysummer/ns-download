@@ -413,7 +413,7 @@ async function testProxy() {
   <div class="flex h-full">
     <!-- 侧边栏对齐 FluxDown _SettingsNavItem: 透明→hoverBg 背景 + 选中态 3px 右侧指示条 -->
     <div class="w-44 shrink-0 flex flex-col py-3 px-2 gap-0.5" style="background-color: var(--surface-bg); border-right: 1px solid var(--surface-border);">
-      <div class="px-2 pb-3 mb-0.5 text-xs font-semibold uppercase tracking-wider" style="color: var(--text-muted);">设置</div>
+      <div class="px-2 pb-3 mb-0.5 text-xs font-semibold spacing-3" style="color: var(--text-muted);">设 置</div>
       <button
         v-for="cat in categories"
         :key="cat.id"
@@ -440,11 +440,11 @@ async function testProxy() {
 
         <!-- ========== 通用 ========== -->
         <template v-if="activeCategory === 'general'">
-          <h1 class="text-base font-semibold" style="color: var(--text-primary);">通用</h1>
+          <h1 class="text-base font-semibold spacing-2" style="color: var(--text-primary);">通用</h1>
 
           <div class="space-y-2">
-            <h2 class="text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);">启动与托盘</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <h2 class="text-xs font-semibold spacing-2 pl-0.5" style="color: var(--text-secondary);">启动与托盘</h2>
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <SettingRow label="开机自启" desc="系统启动时自动运行" v-model="store.settings.autoStartup" />
               <Divider />
               <SettingRow label="关闭到托盘" desc="关闭窗口时最小化到系统托盘" v-model="store.settings.closeToTray" />
@@ -454,8 +454,8 @@ async function testProxy() {
           </div>
 
           <div class="space-y-2">
-            <h2 class="text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);">系统</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <h2 class="text-xs font-semibold spacing-2 pl-0.5" style="color: var(--text-secondary);">系统</h2>
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <SettingRow label="Torrent 文件关联" desc="将 .torrent 文件与 ns-download 关联" v-model="store.settings.torrentAssociated" />
               <Divider />
               <SettingRow label="下载完成通知" desc="下载完成后显示系统通知" v-model="store.settings.notifyOnComplete" />
@@ -469,7 +469,7 @@ async function testProxy() {
               <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide" style="color: var(--text-secondary);"><PanelLeft class="w-3 h-3" /> 侧边栏显示</h2>
               <p class="text-[11px]" style="color: var(--text-muted);">控制侧边栏中各模块的可见性</p>
             </div>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <SettingRow label="状态标签" desc="显示下载中/已完成等状态标签" v-model="store.settings.showSidebarStatus" />
               <Divider />
               <SettingRow label="队列分组" desc="显示队列分组（默认/稍后下载）" v-model="store.settings.showSidebarQueues" />
@@ -483,7 +483,7 @@ async function testProxy() {
               <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide" style="color: var(--text-secondary);"><PanelTop class="w-3 h-3" /> 标题栏按钮</h2>
               <p class="text-[11px]" style="color: var(--text-muted);">控制标题栏中各按钮的可见性</p>
             </div>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <SettingRow label="全部暂停" desc="在标题栏显示全部暂停按钮" v-model="store.settings.showTitlebarPauseAll" />
               <Divider />
               <SettingRow label="全部恢复" desc="在标题栏显示全部恢复按钮" v-model="store.settings.showTitlebarResumeAll" />
@@ -497,7 +497,7 @@ async function testProxy() {
           <!-- 自定义分类：对齐 FluxDown _CustomCategoryManager -->
           <div class="space-y-2">
             <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);"><FileText class="w-3 h-3" /> 自定义分类</h2>
-            <section class="rounded-xl" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <div class="px-4 py-3 space-y-3">
                 <div class="flex items-center justify-between">
                   <div>
@@ -560,11 +560,11 @@ async function testProxy() {
 
         <!-- ========== 外观 ========== -->
         <template v-if="activeCategory === 'appearance'">
-          <h1 class="text-base font-semibold" style="color: var(--text-primary);">外观</h1>
+          <h1 class="text-base font-semibold spacing-2" style="color: var(--text-primary);">外观</h1>
 
           <div class="space-y-2">
             <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);"><Languages class="w-3 h-3" /> 语言</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <div class="flex items-center justify-between px-4 py-2.5">
                 <div><label class="text-sm font-medium" style="color: var(--text-primary);">界面语言</label><p class="text-xs mt-0.5" style="color: var(--text-muted);">选择应用界面语言</p></div>
                 <select v-model="store.settings.language" class="h-8 rounded-md px-2.5 text-sm outline-none transition-colors cursor-pointer" style="background-color: var(--app-bg); border: 1px solid var(--surface-border); color: var(--text-primary); min-width: 120px;">
@@ -577,7 +577,7 @@ async function testProxy() {
 
           <div class="space-y-2">
             <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);"><SunMoon class="w-3 h-3" /> 主题</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <!-- 主题模式：对齐 FluxDown _ThemeModeSelector（system/dark/light + 图标） -->
               <div class="px-4 py-3 space-y-3">
                 <div><label class="text-sm font-medium" style="color: var(--text-primary);">主题模式</label><p class="text-xs mt-0.5" style="color: var(--text-muted);">选择应用的色彩方案</p></div>
@@ -643,7 +643,7 @@ async function testProxy() {
 
           <div class="space-y-2">
             <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);"><Maximize class="w-3 h-3" /> 界面缩放</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <div class="flex items-center justify-between px-4 py-2.5">
                 <div><label class="text-sm font-medium" style="color: var(--text-primary);">UI 缩放</label><p class="text-xs mt-0.5" style="color: var(--text-muted);">调整界面元素大小</p></div>
                 <div class="flex gap-1">
@@ -664,11 +664,11 @@ async function testProxy() {
 
         <!-- ========== 下载 ========== -->
         <template v-if="activeCategory === 'download'">
-          <h1 class="text-base font-semibold" style="color: var(--text-primary);">下载</h1>
+          <h1 class="text-base font-semibold spacing-2" style="color: var(--text-primary);">下载</h1>
 
           <div class="space-y-2">
             <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);"><FolderOpen class="w-3 h-3" /> 保存位置</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <div class="px-4 py-3 space-y-2">
                 <label class="text-sm font-medium" style="color: var(--text-primary);">默认保存目录</label>
                 <p class="text-xs" style="color: var(--text-muted);">下载任务默认保存的位置</p>
@@ -687,7 +687,7 @@ async function testProxy() {
 
           <div class="space-y-2">
             <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);"><BellOff class="w-3 h-3" /> 行为</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <SettingRow label="静默下载" desc="添加任务后直接开始下载，不弹出确认对话框" v-model="store.settings.silentDownload" />
               <Divider />
               <SettingRow label="使用服务器时间" desc="使用文件的服务器时间戳作为文件修改时间" v-model="store.settings.useServerTime" />
@@ -704,7 +704,7 @@ async function testProxy() {
 
           <div class="space-y-2">
             <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);"><Shield class="w-3 h-3" /> 连接</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <div class="flex items-center justify-between px-4 py-2.5">
                 <div><label class="text-sm font-medium" style="color: var(--text-primary);">默认线程数</label><p class="text-xs mt-0.5" style="color: var(--text-muted);">每个下载任务的默认连接线程数</p></div>
                 <select v-model.number="store.settings.defaultThreads" class="h-8 rounded-md px-2.5 text-sm outline-none transition-colors cursor-pointer" style="background-color: var(--app-bg); border: 1px solid var(--surface-border); color: var(--text-primary); min-width: 88px;">
@@ -749,8 +749,8 @@ async function testProxy() {
           </div>
 
           <div class="space-y-2">
-            <h2 class="text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);">重试</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <h2 class="text-xs font-semibold spacing-2 pl-0.5" style="color: var(--text-secondary);">重试</h2>
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <div class="flex items-center justify-between px-4 py-2.5">
                 <div><label class="text-sm font-medium" style="color: var(--text-primary);">自动重试次数</label><p class="text-xs mt-0.5" style="color: var(--text-muted);">下载失败时的最大重试次数</p></div>
                 <select v-model.number="store.settings.retryCount" class="h-8 rounded-md px-2.5 text-sm outline-none transition-colors cursor-pointer" style="background-color: var(--app-bg); border: 1px solid var(--surface-border); color: var(--text-primary); min-width: 88px;">
@@ -776,8 +776,8 @@ async function testProxy() {
           </div>
 
           <div class="space-y-2">
-            <h2 class="text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);">高级</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <h2 class="text-xs font-semibold spacing-2 pl-0.5" style="color: var(--text-secondary);">高级</h2>
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <div class="px-4 py-3 space-y-2">
                 <label class="text-sm font-medium" style="color: var(--text-primary);">User-Agent</label>
                 <p class="text-xs" style="color: var(--text-muted);">选择预设或自定义 User-Agent，留空使用默认值</p>
@@ -805,10 +805,10 @@ async function testProxy() {
 
         <!-- ========== 代理 ========== -->
         <template v-if="activeCategory === 'proxy'">
-          <h1 class="text-base font-semibold" style="color: var(--text-primary);">代理</h1>
+          <h1 class="text-base font-semibold spacing-2" style="color: var(--text-primary);">代理</h1>
           <div class="space-y-2">
-            <h2 class="text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);">代理设置</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <h2 class="text-xs font-semibold spacing-2 pl-0.5" style="color: var(--text-secondary);">代理设置</h2>
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <div class="px-4 py-3 space-y-4">
                 <div class="flex gap-2">
                   <button v-for="opt in [{id:'none',icon:Unplug,label:'无代理'},{id:'system',icon:Monitor,label:'系统代理'},{id:'manual',icon:Settings,label:'手动代理'}]" :key="opt.id" @click="store.settings.proxyType = opt.id"
@@ -868,10 +868,10 @@ async function testProxy() {
 
         <!-- ========== API 服务 ========== -->
         <template v-if="activeCategory === 'api'">
-          <h1 class="text-base font-semibold" style="color: var(--text-primary);">API 服务</h1>
+          <h1 class="text-base font-semibold spacing-2" style="color: var(--text-primary);">API 服务</h1>
           <div class="space-y-2">
-            <h2 class="text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);">本地服务</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <h2 class="text-xs font-semibold spacing-2 pl-0.5" style="color: var(--text-secondary);">本地服务</h2>
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <SettingRow label="启用本地 API 服务" desc="提供 HTTP API 供外部程序调用" v-model="store.settings.localServerEnabled" />
               <Divider />
               <div class="flex items-center justify-between px-4 py-2.5">
@@ -888,8 +888,8 @@ async function testProxy() {
           </div>
 
           <div class="space-y-2">
-            <h2 class="text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);">功能接口</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <h2 class="text-xs font-semibold spacing-2 pl-0.5" style="color: var(--text-secondary);">功能接口</h2>
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <ApiFeatureCard :port="serverPortDisplay" path="/" label="下载接管" desc="浏览器下载接管" :enabled="store.settings.localServerEnabled" v-model="store.settings.localServerTakeoverEnabled" />
               <Divider />
               <ApiFeatureCard :port="serverPortDisplay" path="/jsonrpc" label="JSON-RPC" desc="JSON-RPC 接口" :enabled="store.settings.localServerEnabled" v-model="store.settings.localServerJsonrpcEnabled" />
@@ -903,11 +903,11 @@ async function testProxy() {
 
         <!-- ========== 扩展 ========== -->
         <template v-if="activeCategory === 'extensions'">
-          <h1 class="text-base font-semibold" style="color: var(--text-primary);">扩展</h1>
+          <h1 class="text-base font-semibold spacing-2" style="color: var(--text-primary);">扩展</h1>
 
           <div class="space-y-2">
             <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);"><Shield class="w-3 h-3" /> FFmpeg</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <div class="px-4 py-3 space-y-3">
                 <div class="flex items-center gap-2">
                   <span v-if="ffmpegInfo?.status === '系统'" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="background-color: rgba(34,197,94,0.15); color: var(--success);">系统</span>
@@ -931,7 +931,7 @@ async function testProxy() {
 
           <div class="space-y-2">
             <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);"><Shield class="w-3 h-3" /> yt-dlp</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <div class="px-4 py-3 space-y-3">
                 <div class="flex items-center gap-2">
                   <span v-if="ytdlpInfo?.status === '系统'" class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium" style="background-color: rgba(34,197,94,0.15); color: var(--success);">系统</span>
@@ -956,7 +956,7 @@ async function testProxy() {
 
         <!-- ========== BitTorrent ========== -->
         <template v-if="activeCategory === 'bitTorrent'">
-          <h1 class="text-base font-semibold" style="color: var(--text-primary);">BitTorrent</h1>
+          <h1 class="text-base font-semibold spacing-2" style="color: var(--text-primary);">BitTorrent</h1>
 
           <!-- 子标签导航 -->
           <div class="flex gap-1 px-0.5 mb-4">
@@ -972,7 +972,7 @@ async function testProxy() {
 
           <!-- 基础 -->
           <template v-if="btSubTab === 'basic'">
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <SettingRow label="启用 DHT 网络" desc="通过 DHT 网络发现更多用户" v-model="store.settings.btEnableDht" />
               <Divider />
               <SettingRow label="启用 UPnP" desc="自动进行 UPnP 端口映射" v-model="store.settings.btEnableUpnp" />
@@ -996,14 +996,14 @@ async function testProxy() {
           <!-- Tracker -->
           <template v-if="btSubTab === 'tracker'">
             <div class="space-y-3">
-              <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+              <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
                 <div class="px-4 py-3 space-y-2">
                   <label class="text-sm font-medium" style="color: var(--text-primary);">Tracker 列表</label>
                   <p class="text-xs" style="color: var(--text-muted);">每行一个 Tracker 地址</p>
                   <textarea v-model="store.settings.btTrackerList" rows="4" placeholder="udp://tracker.opentrackr.org:1337&#10;https://tracker.torrent.eu.org:443" class="w-full rounded-md px-2.5 py-2 text-sm outline-none resize-none" style="background-color: var(--app-bg); border: 1px solid var(--surface-border); color: var(--text-primary); font-family: monospace;"></textarea>
                 </div>
               </section>
-              <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+              <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
                 <div class="px-4 py-3 space-y-2">
                   <label class="text-sm font-medium" style="color: var(--text-primary);">Tracker 订阅</label>
                   <p class="text-xs" style="color: var(--text-muted);">每行一个订阅 URL，自动更新 Tracker 列表</p>
@@ -1016,7 +1016,7 @@ async function testProxy() {
 
         <!-- ========== ED2K ========== -->
         <template v-if="activeCategory === 'ed2k'">
-          <h1 class="text-base font-semibold" style="color: var(--text-primary);">ED2K</h1>
+          <h1 class="text-base font-semibold spacing-2" style="color: var(--text-primary);">ED2K</h1>
 
           <!-- 子标签导航 -->
           <div class="flex gap-1 px-0.5 mb-4">
@@ -1032,7 +1032,7 @@ async function testProxy() {
 
           <!-- 基础 -->
           <template v-if="ed2kSubTab === 'basic'">
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <SettingRow label="启用 KAD 网络" desc="通过 KAD 网络发现资源" v-model="store.settings.ed2kEnableKad" />
               <Divider />
               <SettingRow label="启用 UPnP" desc="自动进行 UPnP 端口映射" v-model="store.settings.ed2kEnableUpnp" />
@@ -1054,14 +1054,14 @@ async function testProxy() {
           <!-- 服务器 -->
           <template v-if="ed2kSubTab === 'servers'">
             <div class="space-y-3">
-              <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+              <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
                 <div class="px-4 py-3 space-y-2">
                   <label class="text-sm font-medium" style="color: var(--text-primary);">服务器列表</label>
                   <p class="text-xs" style="color: var(--text-muted);">每行一个 ED2K 服务器地址</p>
                   <textarea v-model="store.settings.ed2kServerList" rows="4" placeholder="ed2k://|server|192.168.1.1|4661|&#10;ed2k://|server|example.com|4661|" class="w-full rounded-md px-2.5 py-2 text-sm outline-none resize-none" style="background-color: var(--app-bg); border: 1px solid var(--surface-border); color: var(--text-primary); font-family: monospace;"></textarea>
                 </div>
               </section>
-              <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+              <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
                 <div class="px-4 py-3 space-y-2">
                   <label class="text-sm font-medium" style="color: var(--text-primary);">服务器订阅</label>
                   <p class="text-xs" style="color: var(--text-muted);">每行一个订阅 URL，自动更新服务器列表</p>
@@ -1074,17 +1074,17 @@ async function testProxy() {
 
         <!-- ========== 关于 ========== -->
         <template v-if="activeCategory === 'about'">
-          <h1 class="text-base font-semibold" style="color: var(--text-primary);">关于</h1>
+          <h1 class="text-base font-semibold spacing-2" style="color: var(--text-primary);">关于</h1>
 
-          <section class="rounded-xl" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+          <section class="rounded-xl gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
             <div class="p-5 space-y-4">
               <div class="flex items-center gap-4">
                 <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: linear-gradient(135deg, #D64531 0%, #8E2B22 100%); box-shadow: 0 2px 16px rgba(214,69,49,0.4); border: 1px solid var(--surface-border);">
               <span style="font-family: 'Kaiti SC', 'STKaiti', 'KaiTi', serif; color: var(--gold); font-size: 20px; font-weight: bold;">云</span>
               </div>
-                <div><div class="text-sm font-semibold" style="color: var(--text-primary);">云舟下载</div><div class="text-xs mt-0.5" style="color: var(--text-muted);">版本 0.1.0</div></div>
+                <div><div class="text-sm font-semibold spacing-2" style="color: var(--text-primary);">云舟下载</div><div class="text-xs mt-0.5" style="color: var(--text-muted);">版本 0.0.3</div></div>
               </div>
-              <div class="text-xs leading-relaxed" style="color: var(--text-muted);">水墨雅集·云舟载物 · 古风下载管理器</div>
+              <div class="text-xs leading-relaxed spacing-1" style="color: var(--text-muted);">水墨雅集 · 云舟载物 · 古风下载器</div>
               <div class="flex items-center gap-2 text-xs" style="color: var(--text-muted);">
                 <span>Tauri 2.x</span><span style="color: var(--surface-border);">·</span><span>Vue 3.x</span><span style="color: var(--surface-border);">·</span><span>Rust</span><span style="color: var(--surface-border);">·</span><span>TypeScript</span>
               </div>
@@ -1097,7 +1097,7 @@ async function testProxy() {
 
           <div class="space-y-2">
             <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);"><RefreshCw class="w-3 h-3" /> 软件更新</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <SettingRow label="自动检查更新" desc="启动时自动检查新版本" v-model="store.settings.autoCheckUpdate" />
               <Divider />
               <div class="flex items-center justify-between px-4 py-2.5">
@@ -1106,10 +1106,10 @@ async function testProxy() {
               </div>
               <Divider />
               <div class="px-4 py-3">
-                <button @click="checkUpdate" :disabled="updateChecking" class="h-8 px-4 rounded-md text-xs font-medium transition-colors hover:opacity-90" style="background-color: var(--accent); color: var(--text-primary);">
+                <button @click="checkUpdate" :disabled="updateChecking" class="h-8 px-4 rounded-lg text-xs font-medium transition-all gold-grad hover:opacity-90" style="color: #221407;">
                   {{ updateChecking ? '检查中…' : '检查更新' }}
                 </button>
-                <div v-if="updateInfo" class="mt-2 text-xs" :style="{ color: updateInfo.has_update ? 'var(--success)' : updateInfo.error_message ? '#D64531' : 'var(--text-muted)' }">
+                <div v-if="updateInfo" class="mt-2 text-xs" :style="{ color: updateInfo.has_update ? 'var(--success)' : updateInfo.error_message ? 'var(--danger)' : 'var(--text-muted)' }">
                   <template v-if="updateInfo.error_message">检查失败: {{ updateInfo.error_message }}</template>
                   <template v-else-if="updateInfo.has_update">
                     发现新版本 <a :href="updateInfo.download_url" target="_blank" style="color: var(--accent);">{{ updateInfo.latest_version }}</a>
@@ -1123,7 +1123,7 @@ async function testProxy() {
 
           <div class="space-y-2">
             <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);"><FileText class="w-3 h-3" /> 日志导出</h2>
-            <section class="rounded-xl" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <div class="px-4 py-3 space-y-3">
                 <p class="text-xs" style="color: var(--text-muted);">导出应用日志以排查问题</p>
                 <button @click="exportLogs" class="h-8 px-4 rounded-md text-xs font-medium transition-colors" style="background-color: var(--app-bg); border: 1px solid var(--surface-border); color: var(--text-secondary);">导出日志</button>
@@ -1133,7 +1133,7 @@ async function testProxy() {
 
           <div class="space-y-2">
             <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);"><SettingsIcon class="w-3 h-3" /> 配置管理</h2>
-            <section class="rounded-xl" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <div class="px-4 py-3 flex gap-2">
                 <button @click="exportSettings" class="h-8 px-4 rounded-md text-xs font-medium transition-colors" style="background-color: var(--app-bg); border: 1px solid var(--surface-border); color: var(--text-secondary);">导出配置</button>
                 <button @click="importSettings" class="h-8 px-4 rounded-md text-xs font-medium transition-colors" style="background-color: var(--app-bg); border: 1px solid var(--surface-border); color: var(--text-secondary);">导入配置</button>
@@ -1143,10 +1143,10 @@ async function testProxy() {
 
           <div class="space-y-2">
             <h2 class="flex items-center gap-1.5 text-xs font-semibold tracking-wide pl-0.5" style="color: var(--text-secondary);"><svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> 支持项目</h2>
-            <section class="rounded-xl overflow-hidden" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
+            <section class="rounded-xl overflow-hidden gold-border" style="background-color: var(--surface-bg); border: 1px solid var(--surface-border);">
               <div class="px-4 py-4 flex flex-col items-center gap-3">
                 <p class="text-xs text-center leading-relaxed" style="color: var(--text-muted);">如果您觉得 ns-download 对您有帮助，欢迎扫码支持开发者</p>
-                <button @click="showDonate = true; donateZoom = 0.5; donatePanX = 0; donatePanY = 0" class="flex items-center gap-1.5 h-9 px-5 rounded-lg text-xs font-medium transition-colors hover:opacity-90" style="background-color: var(--accent); color: var(--text-primary);">
+                <button @click="showDonate = true; donateZoom = 0.5; donatePanX = 0; donatePanY = 0" class="flex items-center gap-1.5 h-9 px-5 rounded-lg text-xs font-medium transition-all hover:opacity-90 gold-grad" style="color: #221407;">
                   <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                   捐赠支持
                 </button>
@@ -1183,8 +1183,8 @@ async function testProxy() {
                 <div class="overflow-y-auto p-4 text-xs leading-relaxed whitespace-pre-wrap" style="color: var(--text-secondary); max-height: calc(70vh - 52px);">{{ updateInfo.body }}</div>
                 <div class="flex justify-end px-4 py-3" style="border-top: 1px solid var(--surface-border);">
                   <a :href="updateInfo.download_url" target="_blank"
-                    class="rounded-md px-4 py-1.5 text-xs font-medium transition-colors"
-                    style="background-color: var(--accent); color: var(--text-primary);">前往下载</a>
+                    class="rounded-lg px-4 py-1.5 text-xs font-medium transition-all gold-grad"
+                    style="color: #221407;">前往下载</a>
                 </div>
               </div>
             </div>

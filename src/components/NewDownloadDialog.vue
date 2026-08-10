@@ -178,15 +178,15 @@ function removeHeader(index: number) {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center" :style="{ backgroundColor: 'rgba(0,0,0,0.5)' }" @click.self="emit('close')">
-    <div class="flex w-full max-w-lg flex-col rounded-xl shadow-2xl" :style="{ backgroundColor: 'var(--surface-bg)', border: '1px solid var(--surface-border)' }">
+  <div class="fixed inset-0 z-50 flex items-center justify-center" :style="{ backgroundColor: 'rgba(0,0,0,0.5)' }" @click="emit('close')">
+    <div class="flex w-full max-w-lg flex-col rounded-xl shadow-2xl" @click.stop :style="{ backgroundColor: 'var(--surface-bg)', border: '1px solid var(--surface-border)' }">
       <!-- Title -->
       <div class="flex items-center justify-between px-5 py-4" :style="{ borderBottom: '1px solid var(--surface-border)' }">
         <div class="flex items-center gap-2.5">
           <div class="flex h-7 w-7 items-center justify-center rounded" :style="{ backgroundColor: 'rgba(var(--accent-rgb),0.18)' }">
             <Download class="h-3.5 w-3.5" :style="{ color: 'var(--accent)' }" />
           </div>
-          <h2 class="text-sm font-semibold font-kai" :style="{ color: 'var(--text-primary)' }">新建下载</h2>
+          <h2 class="text-sm font-semibold font-kai spacing-2" :style="{ color: 'var(--text-primary)' }">新建下载</h2>
         </div>
         <button @click="emit('close')" class="rounded p-1 transition-colors" :style="{ color: 'var(--text-muted)' }">
           <X class="h-4 w-4" />
@@ -330,7 +330,7 @@ function removeHeader(index: number) {
 
       <!-- Footer actions -->
       <div class="flex items-center justify-end gap-3 px-5 py-4" :style="{ borderTop: '1px solid var(--surface-border)' }">
-        <button @click="emit('close')"
+        <button @click="emit('close')" 
           class="rounded-md px-4 py-1.5 text-sm font-medium transition-colors hover-bg-surface2" :style="{ color: 'var(--text-secondary)' }">
           取消
         </button>
@@ -340,8 +340,8 @@ function removeHeader(index: number) {
           <Clock class="h-3.5 w-3.5" /> 稍后下载
         </button>
         <button @click="submit(false)" :disabled="!url.trim()"
-          class="flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
-          :style="{ backgroundColor: 'var(--accent)', color: 'var(--text-primary)' }">
+          class="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition-all gold-grad disabled:opacity-50"
+          :style="{ color: '#221407' }">
           <Download class="h-3.5 w-3.5" /> 开始下载
         </button>
       </div>

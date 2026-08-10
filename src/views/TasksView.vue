@@ -171,9 +171,9 @@ function formatEta(task: any): string {
       <button
         v-for="tab in store.filterTabs" :key="tab.id"
         @click="store.activeFilter = tab.id"
-        :class="['rounded-md px-3 py-1 text-sm transition-colors', store.activeFilter === tab.id ? '' : 'hover-bg']"
+        :class="['rounded-lg px-3 py-1 text-sm transition-all', store.activeFilter === tab.id ? '' : 'hover-bg']"
         :style="store.activeFilter === tab.id
-          ? { backgroundColor: 'var(--accent)', color: 'var(--text-primary)' }
+          ? { backgroundColor: 'rgba(var(--accent-rgb),0.15)', color: 'var(--accent)' }
           : { color: 'var(--text-muted)', backgroundColor: 'transparent' }"
       >
         {{ tab.label }} ({{ tab.count }})
@@ -191,8 +191,8 @@ function formatEta(task: any): string {
         <Play class="h-4 w-4" />
       </button>
       <button @click="showNewDialog = true; droppedUrl = ''"
-        class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
-        :style="{ backgroundColor: 'var(--accent)', color: 'var(--text-primary)' }">
+        class="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all gold-grad"
+        :style="{ color: '#221407' }">
         <Plus class="h-3.5 w-3.5" /> 新建
       </button>
     </div>

@@ -81,22 +81,22 @@ function navStyle(selected: boolean) {
 <template>
   <aside :style="{ backgroundColor: 'var(--surface-bg)', borderRight: '1px solid var(--surface-border)' }"
     class="flex w-56 flex-col overflow-hidden select-none">
-    <div :style="{ borderBottom: '1px solid var(--surface-border)' }" class="flex items-center gap-2 px-4 py-3">
-      <div class="seal-badge h-5 w-5 rounded text-xs" :style="{ backgroundColor: '#D64531', color: 'var(--text-primary)' }">载</div>
-      <span :style="{ color: 'var(--text-primary)' }" class="font-kai text-sm font-semibold tracking-widest">云舟下载</span>
-      <span :style="{ color: 'var(--gold)' }" class="text-2xs font-seal">· 水墨雅集</span>
+    <div :style="{ borderBottom: '1px solid var(--surface-border)' }" class="flex items-center gap-2.5 px-4 py-3">
+      <div class="seal-badge h-6 w-6 rounded-lg text-xs" style="letter-spacing:0">云</div>
+      <span :style="{ color: 'var(--text-primary)' }" class="font-kai text-sm font-semibold spacing-2">云舟</span>
+      <span :style="{ color: 'var(--text-muted)' }" class="text-2xs font-seal spacing-1">· 载物</span>
     </div>
 
     <nav class="flex-1 overflow-y-auto px-2 py-3">
       <!-- Status section header -->
-      <div v-if="store.settings.showSidebarStatus" :style="{ color: 'var(--text-muted)' }" class="mb-1 px-2 text-2xs font-semibold uppercase tracking-wider" style="letter-spacing: 0.5px;">状态</div>
+      <div v-if="store.settings.showSidebarStatus" :style="{ color: 'var(--text-muted)' }" class="mb-1.5 px-2 text-2xs font-semibold spacing-2">状 态</div>
 
       <!-- Status tabs -->
       <template v-if="store.settings.showSidebarStatus">
         <button
           v-for="tab in statusTabs" :key="tab.key"
           @click="store.setActiveFilter(tab.query.status || 'all'); router.push({ path: '/tasks', query: tab.query })"
-          :class="['flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors', isTabActive(tab) ? '' : 'hover-bg']"
+          :class="['flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm transition-all', isTabActive(tab) ? '' : 'hover-bg']"
           :style="navStyle(isTabActive(tab))"
         >
           <span class="relative flex shrink-0">
@@ -106,7 +106,7 @@ function navStyle(selected: boolean) {
               class="absolute -right-1.5 -top-1.5 h-1.5 w-1.5 rounded-full border"
             ></span>
           </span>
-          <span class="flex-1 text-left">{{ tab.label }}</span>
+          <span class="flex-1 text-left spacing-1">{{ tab.label }}</span>
           <span :style="{ color: 'var(--text-muted)' }" class="text-2xs tabular-nums">{{ tabCount(tab.key) }}</span>
         </button>
       </template>
@@ -119,9 +119,9 @@ function navStyle(selected: boolean) {
         >
           <div class="flex items-center gap-1">
             <component :is="queuesExpanded ? ChevronDown : ChevronRight" class="h-3 w-3" />
-            <span class="text-2xs font-semibold uppercase tracking-wider" style="letter-spacing: 0.5px;">队列</span>
+            <span class="text-2xs font-semibold spacing-2">队 列</span>
           </div>
-          <button @click.stop="showQueueManager = true" class="rounded p-0.5 transition-colors"><Plus class="h-3 w-3" /></button>
+          <button @click="showQueueManager = true" class="rounded p-0.5 transition-colors"><Plus class="h-3 w-3" /></button>
         </div>
       </div>
       <template v-if="store.settings.showSidebarQueues && queuesExpanded">
@@ -138,10 +138,10 @@ function navStyle(selected: boolean) {
 
           <template v-if="hoveredQueue === q.id">
             <span class="flex gap-0.5">
-              <button @click.stop="store.toggleQueue(q.id)" class="rounded p-0.5" :style="{ color: 'var(--text-muted)' }">
+              <button @click="store.toggleQueue(q.id)" class="rounded p-0.5" :style="{ color: 'var(--text-muted)' }">
                 <component :is="q.running ? Pause : Play" class="h-3 w-3" />
               </button>
-              <button @click.stop="showQueueManager = true" class="rounded p-0.5" :style="{ color: 'var(--text-muted)' }">
+              <button @click="showQueueManager = true" class="rounded p-0.5" :style="{ color: 'var(--text-muted)' }">
                 <SlidersHorizontal class="h-3 w-3" />
               </button>
             </span>
@@ -162,9 +162,9 @@ function navStyle(selected: boolean) {
         >
           <div class="flex items-center gap-1">
             <component :is="categoriesExpanded ? ChevronDown : ChevronRight" class="h-3 w-3" />
-            <span class="text-2xs font-semibold uppercase tracking-wider" style="letter-spacing: 0.5px;">分类</span>
+            <span class="text-2xs font-semibold spacing-2">分 类</span>
           </div>
-          <button @click.stop="showCategoryManager = true" class="rounded p-0.5 transition-colors"><SlidersHorizontal class="h-3 w-3" /></button>
+          <button @click="showCategoryManager = true" class="rounded p-0.5 transition-colors"><SlidersHorizontal class="h-3 w-3" /></button>
         </div>
       </div>
       <template v-if="store.settings.showSidebarCategory && categoriesExpanded">
