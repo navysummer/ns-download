@@ -12,7 +12,6 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::menu::{Menu, MenuItem};
 #[cfg(not(mobile))]
 use tauri::image::Image;
-#[cfg(not(mobile))]
 use tauri::Manager;
 
 pub struct AppState {
